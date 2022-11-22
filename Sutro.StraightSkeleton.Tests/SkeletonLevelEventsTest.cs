@@ -1,10 +1,10 @@
 ﻿using System.Collections.Generic;
-using NUnit.Framework;
 using Sutro.StraightSkeleton.Primitives;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Sutro.StraightSkeleton.Tests
 {
-    [TestFixture]
+    [TestClass]
     public class SkeletonLevelEventsTest
     {
         private void AssertPolygonWithEdges(int numOfEdges, Skeleton sk)
@@ -18,7 +18,7 @@ namespace Sutro.StraightSkeleton.Tests
             Assert.Fail("Expected polygon with number of edges: " + numOfEdges);
         }
 
-        [Test]
+        [TestMethod]
         public void Skeleton_multiEdgeEvent()
         {
             var outer = new List<Vector2d>
@@ -44,7 +44,7 @@ namespace Sutro.StraightSkeleton.Tests
             SkeletonTestUtil.AssertExpectedPoints(expected, SkeletonTestUtil.GetFacePoints(sk));
         }
 
-        [Test]
+        [TestMethod]
         public void Skeleton_pickEvent()
         {
             var outer = new List<Vector2d>
@@ -66,7 +66,7 @@ namespace Sutro.StraightSkeleton.Tests
             SkeletonTestUtil.AssertExpectedPoints(expected, SkeletonTestUtil.GetFacePoints(sk));
         }
 
-        [Test]
+        [TestMethod]
         public void SkeletonTest_cross_T1()
         {
             var outer = new List<Vector2d>
@@ -94,7 +94,7 @@ namespace Sutro.StraightSkeleton.Tests
             SkeletonTestUtil.AssertExpectedPoints(expected, SkeletonTestUtil.GetFacePoints(sk));
         }
 
-        [Test]
+        [TestMethod]
         public void SkeletonTest_cross_X1()
         {
             var outer = new List<Vector2d>
@@ -128,7 +128,7 @@ namespace Sutro.StraightSkeleton.Tests
             SkeletonTestUtil.AssertExpectedPoints(expected, SkeletonTestUtil.GetFacePoints(sk));
         }
 
-        [Test]
+        [TestMethod]
         public void SkeletonTest_double_split()
         {
             var outer = new List<Vector2d>
@@ -154,7 +154,7 @@ namespace Sutro.StraightSkeleton.Tests
             SkeletonTestUtil.AssertExpectedPoints(expected, SkeletonTestUtil.GetFacePoints(sk));
         }
 
-        [Test]
+        [TestMethod]
         public void SkeletonTest_double_split2()
         {
             var outer = new List<Vector2d>
@@ -184,7 +184,7 @@ namespace Sutro.StraightSkeleton.Tests
             AssertPolygonWithEdges(7, sk);
         }
 
-        [Test]
+        [TestMethod]
         public void SkeletonTest_multiple()
         {
             var outer = new List<Vector2d> {new Vector2d(0, 0), new Vector2d(5, 0), new Vector2d(5, 5), new Vector2d(0, 5)};

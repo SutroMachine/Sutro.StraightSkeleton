@@ -1,13 +1,13 @@
 ﻿using System.Collections.Generic;
-using NUnit.Framework;
 using Sutro.StraightSkeleton.Primitives;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Sutro.StraightSkeleton.Tests
 {
-    [TestFixture]
+    [TestClass]
     internal class SkeletonExtendedTest
     {
-        [Test]
+        [TestMethod]
         public void Skeleton_1()
         {
             var polygon = new List<Vector2d>
@@ -107,7 +107,7 @@ namespace Sutro.StraightSkeleton.Tests
             SkeletonTestUtil.AssertExpectedPoints(expected, SkeletonTestUtil.GetFacePoints(sk));
         }
 
-        [Test]
+        [TestMethod]
         public void Skeleton_2()
         {
             var polygon = new List<Vector2d>
@@ -147,7 +147,7 @@ namespace Sutro.StraightSkeleton.Tests
             SkeletonTestUtil.AssertExpectedPoints(expected, SkeletonTestUtil.GetFacePoints(sk));
         }
 
-        [Test]
+        [TestMethod]
         public void Skeleton_3()
         {
             var polygon = new List<Vector2d>
@@ -351,7 +351,7 @@ namespace Sutro.StraightSkeleton.Tests
             SkeletonTestUtil.AssertExpectedPoints(expected, SkeletonTestUtil.GetFacePoints(sk));
         }
 
-        [Test]
+        [TestMethod]
         public void Skeleton_4()
         {
             var polygon = new List<Vector2d>
@@ -741,7 +741,7 @@ namespace Sutro.StraightSkeleton.Tests
             SkeletonTestUtil.AssertExpectedPoints(expected, SkeletonTestUtil.GetFacePoints(sk));
         }
 
-        [Test]
+        [TestMethod]
         public void Skeleton_5()
         {
             var polygon = new List<Vector2d>
@@ -823,7 +823,7 @@ namespace Sutro.StraightSkeleton.Tests
             SkeletonTestUtil.AssertExpectedPoints(expected, SkeletonTestUtil.GetFacePoints(sk));
         }
 
-        [Test]
+        [TestMethod]
         public void Skeleton_6()
         {
             var polygon = new List<Vector2d>
@@ -871,7 +871,7 @@ namespace Sutro.StraightSkeleton.Tests
             SkeletonTestUtil.AssertExpectedPoints(expected, SkeletonTestUtil.GetFacePoints(sk));
         }
 
-        [Test]
+        [TestMethod]
         public void Skeleton_7()
         {
             var polygon = new List<Vector2d>
@@ -933,7 +933,7 @@ namespace Sutro.StraightSkeleton.Tests
             SkeletonTestUtil.AssertExpectedPoints(expected, SkeletonTestUtil.GetFacePoints(sk));
         }
 
-        [Test]
+        [TestMethod]
         public void Skeleton_8()
         {
             var polygon = new List<Vector2d>
