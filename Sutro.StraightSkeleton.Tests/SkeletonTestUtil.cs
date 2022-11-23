@@ -1,29 +1,13 @@
-﻿using System;
+﻿using Sutro.StraightSkeleton.Primitives;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using Sutro.StraightSkeleton.Primitives;
 
 namespace Sutro.StraightSkeleton.Tests
 {
     internal class SkeletonTestUtil
     {
-        public static List<Vector2d> GetFacePoints(Skeleton sk)
-        {
-            List<Vector2d> ret = new List<Vector2d>();
-
-            foreach (EdgeResult edgeOutput in sk.Edges)
-            {
-                List<Vector2d> points = edgeOutput.Polygon;
-                foreach (Vector2d vector2d in points)
-                {
-                    if (!ContainsEpsilon(ret, vector2d))
-                        ret.Add(vector2d);
-                }
-            }
-            return ret;
-        }
-
         public static void AssertExpectedPoints(List<Vector2d> expectedList, List<Vector2d> givenList)
         {
             StringBuilder sb = new StringBuilder();
@@ -51,6 +35,22 @@ namespace Sutro.StraightSkeleton.Tests
         public static bool EqualEpsilon(double d1, double d2)
         {
             return Math.Abs(d1 - d2) < 5E-6;
+        }
+
+        public static List<Vector2d> GetFacePoints(Skeleton sk)
+        {
+            List<Vector2d> ret = new List<Vector2d>();
+
+            foreach (EdgeResult edgeOutput in sk.Edges)
+            {
+                List<Vector2d> points = edgeOutput.Polygon;
+                foreach (Vector2d vector2d in points)
+                {
+                    if (!ContainsEpsilon(ret, vector2d))
+                        ret.Add(vector2d);
+                }
+            }
+            return ret;
         }
     }
 }

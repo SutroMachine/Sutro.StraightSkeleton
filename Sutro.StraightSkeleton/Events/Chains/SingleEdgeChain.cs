@@ -4,9 +4,35 @@ namespace Sutro.StraightSkeleton.Events.Chains
 {
     internal class SingleEdgeChain : IChain
     {
-        private readonly Vertex _nextVertex;
-        private readonly Edge _oppositeEdge;
-        private readonly Vertex _previousVertex;
+        public ChainType ChainType
+        {
+            get { return ChainType.Split; }
+        }
+
+        public Vertex CurrentVertex
+        {
+            get { return null; }
+        }
+
+        public Edge NextEdge
+        {
+            get { return _oppositeEdge; }
+        }
+
+        public Vertex NextVertex
+        {
+            get { return _nextVertex; }
+        }
+
+        public Edge PreviousEdge
+        {
+            get { return _oppositeEdge; }
+        }
+
+        public Vertex PreviousVertex
+        {
+            get { return _previousVertex; }
+        }
 
         public SingleEdgeChain(Edge oppositeEdge, Vertex nextVertex)
         {
@@ -19,16 +45,8 @@ namespace Sutro.StraightSkeleton.Events.Chains
             _previousVertex = nextVertex.Previous as Vertex;
         }
 
-        public Edge PreviousEdge { get { return _oppositeEdge; } }
-
-        public Edge NextEdge { get { return _oppositeEdge; } }
-
-        public Vertex PreviousVertex { get { return _previousVertex; } }
-
-        public Vertex NextVertex { get { return _nextVertex; } }
-
-        public Vertex CurrentVertex { get { return null; } }
-
-        public ChainType ChainType { get { return ChainType.Split; } }
+        private readonly Vertex _nextVertex;
+        private readonly Edge _oppositeEdge;
+        private readonly Vertex _previousVertex;
     }
 }

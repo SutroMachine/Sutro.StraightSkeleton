@@ -9,15 +9,17 @@ namespace Sutro.StraightSkeleton.Events
         public readonly Edge OppositeEdge;
         public readonly Vertex Parent;
 
+        public override bool IsObsolete
+        {
+            get { return Parent.IsProcessed; }
+        }
+
         public SplitEvent(Vector2d point, double distance, Vertex parent, Edge oppositeEdge)
-            : base(point, distance)
+                    : base(point, distance)
         {
             Parent = parent;
             OppositeEdge = oppositeEdge;
         }
-
-        public override bool IsObsolete { get { return Parent.IsProcessed; } }
-
 
         public override String ToString()
         {

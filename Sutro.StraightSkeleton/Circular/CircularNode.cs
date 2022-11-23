@@ -1,9 +1,7 @@
-namespace Sutro.StraightSkeleton.Circular
+﻿namespace Sutro.StraightSkeleton.Circular
 {
     public class CircularNode
     {
-        internal ICircularList List;
-
         public CircularNode Next;
         public CircularNode Previous;
 
@@ -21,5 +19,7 @@ namespace Sutro.StraightSkeleton.Circular
         {
             List.Remove(this);
         }
+
+        internal ICircularList List;
     }
 }

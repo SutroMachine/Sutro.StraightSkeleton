@@ -7,37 +7,6 @@ namespace Sutro.StraightSkeleton.Primitives
     {
         #region Vector specific
 
-        public static Vector2d FromTo(Vector2d begin, Vector2d end)
-        {
-            return new Vector2d(end.X - begin.X, end.Y - begin.Y);
-        }
-
-        public static Vector2d OrthogonalLeft(Vector2d v)
-        {
-            return new Vector2d(-v.Y, v.X);
-        }
-
-        public static Vector2d OrthogonalRight(Vector2d v)
-        {
-            return new Vector2d(v.Y, -v.X);
-        }
-
-        /// <summary>
-        ///     <see href="http://en.wikipedia.org/wiki/Vector_projection" />
-        /// </summary>
-        public static Vector2d OrthogonalProjection(Vector2d unitVector, Vector2d vectorToProject)
-        {
-            var n = new Vector2d(unitVector).Normalized();
-
-            var px = vectorToProject.X;
-            var py = vectorToProject.Y;
-
-            var ax = n.X;
-            var ay = n.Y;
-
-            return new Vector2d(px * ax * ax + py * ax * ay, px * ax * ay + py * ay * ay);
-        }
-
         public static Vector2d BisectorNormalized(Vector2d norm1, Vector2d norm2)
         {
             var e1v = OrthogonalLeft(norm1);
@@ -59,34 +28,64 @@ namespace Sutro.StraightSkeleton.Primitives
             return ret;
         }
 
-        #endregion
+        public static Vector2d FromTo(Vector2d begin, Vector2d end)
+        {
+            return new Vector2d(end.X - begin.X, end.Y - begin.Y);
+        }
+
+        public static Vector2d OrthogonalLeft(Vector2d v)
+        {
+            return new Vector2d(-v.Y, v.X);
+        }
+
+        /// <summary>
+        ///     <see href="http://en.wikipedia.org/wiki/Vector_projection" />
+        /// </summary>
+        public static Vector2d OrthogonalProjection(Vector2d unitVector, Vector2d vectorToProject)
+        {
+            var n = new Vector2d(unitVector).Normalized();
+
+            var px = vectorToProject.X;
+            var py = vectorToProject.Y;
+
+            var ax = n.X;
+            var ay = n.Y;
+
+            return new Vector2d(px * ax * ax + py * ax * ay, px * ax * ay + py * ay * ay);
+        }
+
+        public static Vector2d OrthogonalRight(Vector2d v)
+        {
+            return new Vector2d(v.Y, -v.X);
+        }
+
+        #endregion Vector specific
 
         #region Ray specific
 
-        /// <summary> Error epsilon. Anything that avoids division. </summary>
-        private const double SmallNum = 0.00000001;
-
-        /// <summary> Return value if there is no intersection. </summary>
-        private static readonly IntersectPoints Empty = new IntersectPoints();
-
-        public static bool IsPointOnRay(Vector2d point, LineParametric2d ray, double epsilon)
+        public class IntersectPoints
         {
-            var rayDirection = new Vector2d(ray.U).Normalized();
-            // test if point is on ray
-            var pointVector = point - ray.A;
+            /// <summary> Intersection point or begin of intersection segment. </summary>
+            public readonly Vector2d Intersect;
 
-            var dot = rayDirection.Dot(pointVector);
+            /// <summary> Intersection end. </summary>
+            public readonly Vector2d IntersectEnd;
 
-            if (dot < epsilon)
-                return false;
+            public IntersectPoints(Vector2d intersect, Vector2d intersectEnd)
+            {
+                Intersect = intersect;
+                IntersectEnd = intersectEnd;
+            }
 
-            var x = rayDirection.X;
-            rayDirection.X = rayDirection.Y;
-            rayDirection.Y = -x;
+            public IntersectPoints(Vector2d intersect)
+                : this(intersect, Vector2d.Empty)
+            {
+            }
 
-            dot = rayDirection.Dot(pointVector);
-
-            return -epsilon < dot && dot < epsilon;
+            public IntersectPoints()
+                : this(Vector2d.Empty, Vector2d.Empty)
+            {
+            }
         }
 
         /// <summary>
@@ -218,6 +217,37 @@ namespace Sutro.StraightSkeleton.Primitives
             return new IntersectPoints(IO);
         }
 
+        public static bool IsPointOnRay(Vector2d point, LineParametric2d ray, double epsilon)
+        {
+            var rayDirection = new Vector2d(ray.U).Normalized();
+            // test if point is on ray
+            var pointVector = point - ray.A;
+
+            var dot = rayDirection.Dot(pointVector);
+
+            if (dot < epsilon)
+                return false;
+
+            var x = rayDirection.X;
+            rayDirection.X = rayDirection.Y;
+            rayDirection.Y = -x;
+
+            dot = rayDirection.Dot(pointVector);
+
+            return -epsilon < dot && dot < epsilon;
+        }
+
+        /// <summary> Error epsilon. Anything that avoids division. </summary>
+        private const double SmallNum = 0.00000001;
+
+        /// <summary> Return value if there is no intersection. </summary>
+        private static readonly IntersectPoints Empty = new IntersectPoints();
+
+        private static double Dot(Vector2d u, Vector2d v)
+        {
+            return u.Dot(v);
+        }
+
         private static bool InCollinearRay(Vector2d p, Vector2d rayStart, Vector2d rayDirection)
         {
             // test if point is on ray
@@ -227,43 +257,13 @@ namespace Sutro.StraightSkeleton.Primitives
             return !(dot < 0);
         }
 
-        private static double Dot(Vector2d u, Vector2d v)
-        {
-            return u.Dot(v);
-        }
-
         /// <summary> Perp Dot Product. </summary>
         private static double Perp(Vector2d u, Vector2d v)
         {
             return u.X * v.Y - u.Y * v.X;
         }
 
-        public class IntersectPoints
-        {
-            /// <summary> Intersection point or begin of intersection segment. </summary>
-            public readonly Vector2d Intersect;
-
-            /// <summary> Intersection end. </summary>
-            public readonly Vector2d IntersectEnd;
-
-            public IntersectPoints(Vector2d intersect, Vector2d intersectEnd)
-            {
-                Intersect = intersect;
-                IntersectEnd = intersectEnd;
-            }
-
-            public IntersectPoints(Vector2d intersect)
-                : this(intersect, Vector2d.Empty)
-            {
-            }
-
-            public IntersectPoints()
-                : this(Vector2d.Empty, Vector2d.Empty)
-            {
-            }
-        }
-
-        #endregion
+        #endregion Ray specific
 
         #region Polygon specific
 
@@ -273,29 +273,6 @@ namespace Sutro.StraightSkeleton.Primitives
         public static bool IsClockwisePolygon(List<Vector2d> polygon)
         {
             return Area(polygon) < 0;
-        }
-
-        /// <summary> Calculate area of polygon outline. For clockwise are will be less then. </summary>
-        /// <param name="polygon">List of polygon points.</param>
-        /// <returns> Area. </returns>
-        private static double Area(List<Vector2d> polygon)
-        {
-            var n = polygon.Count;
-            double A = 0.0f;
-            for (int p = n - 1, q = 0; q < n; p = q++)
-                A += polygon[p].X * polygon[q].Y - polygon[q].X * polygon[p].Y;
-
-            return A * 0.5f;
-        }
-
-        /// <summary> Always returns points ordered as counter clockwise. </summary>
-        /// <param name="polygon"> Polygon as list of points. </param>
-        /// <returns> Counter clockwise polygon.</returns>
-        public static List<Vector2d> MakeCounterClockwise(List<Vector2d> polygon)
-        {
-            if (IsClockwisePolygon(polygon))
-                polygon.Reverse();
-            return polygon;
         }
 
         /// <summary>
@@ -334,6 +311,29 @@ namespace Sutro.StraightSkeleton.Primitives
             return oddNodes;
         }
 
-        #endregion
+        /// <summary> Always returns points ordered as counter clockwise. </summary>
+        /// <param name="polygon"> Polygon as list of points. </param>
+        /// <returns> Counter clockwise polygon.</returns>
+        public static List<Vector2d> MakeCounterClockwise(List<Vector2d> polygon)
+        {
+            if (IsClockwisePolygon(polygon))
+                polygon.Reverse();
+            return polygon;
+        }
+
+        /// <summary> Calculate area of polygon outline. For clockwise are will be less then. </summary>
+        /// <param name="polygon">List of polygon points.</param>
+        /// <returns> Area. </returns>
+        private static double Area(List<Vector2d> polygon)
+        {
+            var n = polygon.Count;
+            double A = 0.0f;
+            for (int p = n - 1, q = 0; q < n; p = q++)
+                A += polygon[p].X * polygon[q].Y - polygon[q].X * polygon[p].Y;
+
+            return A * 0.5f;
+        }
+
+        #endregion Polygon specific
     }
 }

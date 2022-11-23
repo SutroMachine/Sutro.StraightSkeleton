@@ -4,11 +4,11 @@ namespace Sutro.StraightSkeleton.Events.Chains
 {
     internal interface IChain
     {
-        Edge PreviousEdge { get; }
-        Edge NextEdge { get; }
-        Vertex PreviousVertex { get; }
-        Vertex NextVertex { get; }
-        Vertex CurrentVertex { get; }
         ChainType ChainType { get; }
+        Vertex CurrentVertex { get; }
+        Edge NextEdge { get; }
+        Vertex NextVertex { get; }
+        Edge PreviousEdge { get; }
+        Vertex PreviousVertex { get; }
     }
 }

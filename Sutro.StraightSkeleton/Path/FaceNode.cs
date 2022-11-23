@@ -6,14 +6,20 @@ namespace Sutro.StraightSkeleton.Path
     {
         public readonly Vertex Vertex;
 
+        public FaceQueue FaceQueue
+        {
+            get { return (FaceQueue)List; }
+        }
+
+        public bool IsQueueUnconnected
+        {
+            get { return FaceQueue.IsUnconnected; }
+        }
+
         public FaceNode(Vertex vertex)
         {
             Vertex = vertex;
         }
-
-        public FaceQueue FaceQueue { get { return (FaceQueue) List; } }
-
-        public bool IsQueueUnconnected { get { return FaceQueue.IsUnconnected; } }
 
         public void QueueClose()
         {

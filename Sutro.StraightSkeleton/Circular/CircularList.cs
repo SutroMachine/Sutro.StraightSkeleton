@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace Sutro.StraightSkeleton.Circular
@@ -7,16 +7,38 @@ namespace Sutro.StraightSkeleton.Circular
     {
         int Size { get; }
 
-        void AddNext(CircularNode node, CircularNode newNode);
-        void AddPrevious(CircularNode node, CircularNode newNode);
         void AddLast(CircularNode node);
+
+        void AddNext(CircularNode node, CircularNode newNode);
+
+        void AddPrevious(CircularNode node, CircularNode newNode);
+
         void Remove(CircularNode node);
     }
 
     internal class CircularList<T> : ICircularList where T : CircularNode
     {
-        private T _first;
-        private int _size;
+        public int Size
+        { get { return _size; } }
+
+        public void AddLast(CircularNode node)
+        {
+            if (node.List != null)
+                throw new InvalidOperationException("Node is already assigned to different list!");
+
+            if (_first == null)
+            {
+                _first = node as T;
+
+                node.List = this;
+                node.Next = node;
+                node.Previous = node;
+
+                _size++;
+            }
+            else
+                AddPrevious(_first, node);
+        }
 
         public void AddNext(CircularNode node, CircularNode newNode)
         {
@@ -50,23 +72,20 @@ namespace Sutro.StraightSkeleton.Circular
             _size++;
         }
 
-        public void AddLast(CircularNode node)
+        public T First()
+        { return _first; }
+
+        public IEnumerable<T> Iterate()
         {
-            if (node.List != null)
-                throw new InvalidOperationException("Node is already assigned to different list!");
-
-            if (_first == null)
+            var current = _first;
+            var i = 0;
+            while (current != null)
             {
-                _first = node as T;
-
-                node.List = this;
-                node.Next = node;
-                node.Previous = node;
-
-                _size++;
+                yield return current;
+                if (++i == Size)
+                    yield break;
+                current = current.Next as T;
             }
-            else
-                AddPrevious(_first, node);
         }
 
         public void Remove(CircularNode node)
@@ -81,11 +100,10 @@ namespace Sutro.StraightSkeleton.Circular
 
             if (_size == 1)
                 _first = null;
-
             else
             {
                 if (_first == node)
-                    _first = (T) _first.Next;
+                    _first = (T)_first.Next;
 
                 node.Previous.Next = node.Next;
                 node.Next.Previous = node.Previous;
@@ -97,21 +115,7 @@ namespace Sutro.StraightSkeleton.Circular
             _size--;
         }
 
-        public int Size {get { return _size;  } }
-
-        public T First() { return _first; }
-
-        public IEnumerable<T> Iterate()
-        {
-            var current = _first;
-            var i = 0;
-            while (current != null)
-            {
-                yield return current;
-                if (++i == Size)
-                    yield break;
-                current = current.Next as T;
-            }
-        }
+        private T _first;
+        private int _size;
     }
 }

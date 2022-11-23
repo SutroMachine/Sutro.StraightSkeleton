@@ -5,8 +5,27 @@ namespace Sutro.StraightSkeleton.Path
 {
     internal class PathQueue<T> where T : PathQueueNode<T>
     {
-        public int Size { get; private set; }
         public PathQueueNode<T> First { get; private set; }
+        public int Size { get; private set; }
+
+        public void AddFirst(T node)
+        {
+            if (node.List != null)
+                throw new InvalidOperationException("Node is already assigned to different list!");
+
+            if (First == null)
+            {
+                First = node;
+
+                node.List = this;
+                node.Next = null;
+                node.Previous = null;
+
+                Size++;
+            }
+            else
+                throw new InvalidOperationException("First element already exist!");
+        }
 
         public virtual void AddPush(PathQueueNode<T> node, PathQueueNode<T> newNode)
         {
@@ -36,23 +55,17 @@ namespace Sutro.StraightSkeleton.Path
             }
         }
 
-        public void AddFirst(T node)
+        public IEnumerable<T> Iterate()
         {
-            if (node.List != null)
-                throw new InvalidOperationException("Node is already assigned to different list!");
-
-            if (First == null)
+            T current = (T)(First != null ? First.FindEnd() : null);
+            int i = 0;
+            while (current != null)
             {
-                First = node;
-
-                node.List = this;
-                node.Next = null;
-                node.Previous = null;
-
-                Size++;
+                yield return current;
+                if (++i == Size)
+                    yield break;
+                current = current.Next as T;
             }
-            else
-                throw new InvalidOperationException("First element already exist!");
         }
 
         public PathQueueNode<T> Pop(PathQueueNode<T> node)
@@ -100,19 +113,6 @@ namespace Sutro.StraightSkeleton.Path
 
             Size--;
             return previous;
-        }
-
-        public IEnumerable<T> Iterate()
-        {
-            T current = (T) (First != null ? First.FindEnd() : null);
-            int i = 0;
-            while (current != null)
-            {
-                yield return current;
-                if (++i == Size)
-                    yield break;
-                current = current.Next as T;
-            }
         }
     }
 }

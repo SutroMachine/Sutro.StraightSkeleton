@@ -6,22 +6,6 @@ namespace Sutro.StraightSkeleton
 {
     internal class LavUtil
     {
-        /// <summary> Check if two vertex are in the same lav. </summary>
-        public static bool IsSameLav(Vertex v1, Vertex v2)
-        {
-            if (v1.List == null || v2.List == null)
-                return false;
-            return v1.List == v2.List;
-        }
-
-        public static void RemoveFromLav(Vertex vertex)
-        {
-            // if removed or not in list, skip
-            if (vertex == null || vertex.List == null)
-                return;
-            vertex.Remove();
-        }
-
         /// <summary>
         ///     Cuts all vertex after given startVertex and before endVertex. start and
         ///     and vertex are _included_ in cut result.
@@ -47,6 +31,14 @@ namespace Sutro.StraightSkeleton
             }
 
             throw new InvalidOperationException("End vertex can't be found in start vertex lav");
+        }
+
+        /// <summary> Check if two vertex are in the same lav. </summary>
+        public static bool IsSameLav(Vertex v1, Vertex v2)
+        {
+            if (v1.List == null || v2.List == null)
+                return false;
+            return v1.List == v2.List;
         }
 
         /// <summary>
@@ -82,6 +74,14 @@ namespace Sutro.StraightSkeleton
                 ver.Remove();
                 newLaw.AddLast(ver);
             }
+        }
+
+        public static void RemoveFromLav(Vertex vertex)
+        {
+            // if removed or not in list, skip
+            if (vertex == null || vertex.List == null)
+                return;
+            vertex.Remove();
         }
     }
 }

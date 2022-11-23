@@ -5,34 +5,9 @@ namespace Sutro.StraightSkeleton.Events.Chains
 {
     internal class EdgeChain : IChain
     {
-        private readonly bool _closed;
-
-        public EdgeChain(List<EdgeEvent> edgeList)
+        public ChainType ChainType
         {
-            EdgeList = edgeList;
-            _closed = PreviousVertex == NextVertex;
-        }
-
-        public List<EdgeEvent> EdgeList { get; private set; }
-
-        public Edge PreviousEdge
-        {
-            get { return EdgeList[0].PreviousVertex.PreviousEdge; }
-        }
-
-        public Edge NextEdge
-        {
-            get { return EdgeList[EdgeList.Count - 1].NextVertex.NextEdge; }
-        }
-
-        public Vertex PreviousVertex
-        {
-            get { return EdgeList[0].PreviousVertex; }
-        }
-
-        public Vertex NextVertex
-        {
-            get { return EdgeList[EdgeList.Count - 1].NextVertex; }
+            get { return _closed ? ChainType.ClosedEdge : ChainType.Edge; }
         }
 
         public Vertex CurrentVertex
@@ -40,9 +15,34 @@ namespace Sutro.StraightSkeleton.Events.Chains
             get { return null; }
         }
 
-        public ChainType ChainType
+        public List<EdgeEvent> EdgeList { get; private set; }
+
+        public Edge NextEdge
         {
-            get { return _closed ? ChainType.ClosedEdge : ChainType.Edge; }
+            get { return EdgeList[EdgeList.Count - 1].NextVertex.NextEdge; }
         }
+
+        public Vertex NextVertex
+        {
+            get { return EdgeList[EdgeList.Count - 1].NextVertex; }
+        }
+
+        public Edge PreviousEdge
+        {
+            get { return EdgeList[0].PreviousVertex.PreviousEdge; }
+        }
+
+        public Vertex PreviousVertex
+        {
+            get { return EdgeList[0].PreviousVertex; }
+        }
+
+        public EdgeChain(List<EdgeEvent> edgeList)
+        {
+            EdgeList = edgeList;
+            _closed = PreviousVertex == NextVertex;
+        }
+
+        private readonly bool _closed;
     }
 }

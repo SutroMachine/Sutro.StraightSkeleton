@@ -22,10 +22,36 @@ namespace Sutro.StraightSkeleton.Primitives
             Y = var3;
         }
 
-        public void Negate()
+        public static Vector2d operator -(Vector2d left, Vector2d right)
         {
-            X = -X;
-            Y = -Y;
+            return new Vector2d(left.X - right.X, left.Y - right.Y);
+        }
+
+        public static bool operator !=(Vector2d left, Vector2d right)
+        {
+            return !(left == right);
+        }
+
+        public static Vector2d operator *(Vector2d left, double scale)
+        {
+            return new Vector2d(left.X * scale, left.Y * scale);
+        }
+
+        public static Vector2d operator +(Vector2d left, Vector2d right)
+        {
+            return new Vector2d(left.X + right.X, left.Y + right.Y);
+        }
+
+        public static bool operator ==(Vector2d left, Vector2d right)
+        {
+            return left.Equals(right);
+        }
+
+        public double DistanceSquared(Vector2d var1)
+        {
+            var var2 = X - var1.X;
+            var var4 = Y - var1.Y;
+            return var2 * var2 + var4 * var4;
         }
 
         public double DistanceTo(Vector2d var1)
@@ -35,47 +61,9 @@ namespace Sutro.StraightSkeleton.Primitives
             return Math.Sqrt(var2 * var2 + var4 * var4);
         }
 
-        public Vector2d Normalized()
-        {
-            var var1 = 1.0D/Math.Sqrt(X*X + Y*Y);
-            return new Vector2d(X *= var1, Y *= var1);
-        }
-
         public double Dot(Vector2d var1)
         {
-            return X*var1.X + Y*var1.Y;
-        }
-
-        public double DistanceSquared(Vector2d var1)
-        {
-            var var2 = X - var1.X;
-            var var4 = Y - var1.Y;
-            return var2*var2 + var4*var4;
-        }
-
-        public static Vector2d operator -(Vector2d left, Vector2d right)
-        {
-            return new Vector2d(left.X - right.X, left.Y - right.Y);
-        }
-
-        public static Vector2d operator +(Vector2d left, Vector2d right)
-        {
-            return new Vector2d(left.X + right.X, left.Y + right.Y);
-        }
-
-        public static Vector2d operator *(Vector2d left, double scale)
-        {
-            return new Vector2d(left.X * scale, left.Y * scale);
-        }
-
-        public static bool operator ==(Vector2d left, Vector2d right)
-        {
-            return left.Equals(right);
-        }
-
-        public static bool operator !=(Vector2d left, Vector2d right)
-        {
-            return !(left == right);
+            return X * var1.X + Y * var1.Y;
         }
 
         public bool Equals(Vector2d obj)
@@ -93,8 +81,20 @@ namespace Sutro.StraightSkeleton.Primitives
         {
             unchecked
             {
-                return (X.GetHashCode()*397) ^ Y.GetHashCode();
+                return (X.GetHashCode() * 397) ^ Y.GetHashCode();
             }
+        }
+
+        public void Negate()
+        {
+            X = -X;
+            Y = -Y;
+        }
+
+        public Vector2d Normalized()
+        {
+            var var1 = 1.0D / Math.Sqrt(X * X + Y * Y);
+            return new Vector2d(X *= var1, Y *= var1);
         }
 
         public override string ToString()

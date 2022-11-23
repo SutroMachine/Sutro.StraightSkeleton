@@ -1,23 +1,12 @@
-﻿using System.Collections.Generic;
+﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Sutro.StraightSkeleton.Primitives;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System.Collections.Generic;
 
 namespace Sutro.StraightSkeleton.Tests
 {
     [TestClass]
     public class SkeletonLevelEventsTest
     {
-        private void AssertPolygonWithEdges(int numOfEdges, Skeleton sk)
-        {
-            foreach (var edgeOutput in sk.Edges)
-            {
-                var points = edgeOutput.Polygon;
-                if (points.Count == numOfEdges)
-                    return;
-            }
-            Assert.Fail("Expected polygon with number of edges: " + numOfEdges);
-        }
-
         [TestMethod]
         public void Skeleton_multiEdgeEvent()
         {
@@ -40,7 +29,6 @@ namespace Sutro.StraightSkeleton.Tests
 
             var sk = SkeletonBuilder.Build(outer, null);
 
-
             SkeletonTestUtil.AssertExpectedPoints(expected, SkeletonTestUtil.GetFacePoints(sk));
         }
 
@@ -59,7 +47,6 @@ namespace Sutro.StraightSkeleton.Tests
                 new Vector2d(0, 0)
             };
             expected.AddRange(outer);
-
 
             var sk = SkeletonBuilder.Build(outer, null);
 
@@ -112,7 +99,6 @@ namespace Sutro.StraightSkeleton.Tests
                 new Vector2d(-1, 1),
                 new Vector2d(-3, 1)
             };
-
 
             var expected = new List<Vector2d>(outer)
             {
@@ -187,15 +173,15 @@ namespace Sutro.StraightSkeleton.Tests
         [TestMethod]
         public void SkeletonTest_multiple()
         {
-            var outer = new List<Vector2d> {new Vector2d(0, 0), new Vector2d(5, 0), new Vector2d(5, 5), new Vector2d(0, 5)};
+            var outer = new List<Vector2d> { new Vector2d(0, 0), new Vector2d(5, 0), new Vector2d(5, 5), new Vector2d(0, 5) };
 
-            var h1 = new List<Vector2d> { new Vector2d(1, 1), new Vector2d(2, 1), new Vector2d(2, 2), new Vector2d(1, 2)};
+            var h1 = new List<Vector2d> { new Vector2d(1, 1), new Vector2d(2, 1), new Vector2d(2, 2), new Vector2d(1, 2) };
 
-            var h2 = new List<Vector2d> { new Vector2d(3, 3), new Vector2d(4, 3), new Vector2d(4, 4), new Vector2d(3, 4)};
+            var h2 = new List<Vector2d> { new Vector2d(3, 3), new Vector2d(4, 3), new Vector2d(4, 4), new Vector2d(3, 4) };
 
-            var h3 = new List<Vector2d> {new Vector2d(1, 3), new Vector2d(2, 3), new Vector2d(2, 4), new Vector2d(1, 4)};
+            var h3 = new List<Vector2d> { new Vector2d(1, 3), new Vector2d(2, 3), new Vector2d(2, 4), new Vector2d(1, 4) };
 
-            var h4 = new List<Vector2d> {new Vector2d(3, 1), new Vector2d(4, 1), new Vector2d(4, 2), new Vector2d(3, 2)};
+            var h4 = new List<Vector2d> { new Vector2d(3, 1), new Vector2d(4, 1), new Vector2d(4, 2), new Vector2d(3, 2) };
 
             var expected = new List<Vector2d>(outer)
             {
@@ -226,9 +212,20 @@ namespace Sutro.StraightSkeleton.Tests
                 new Vector2d(3.0, 2.0)
             };
 
-            var sk = SkeletonBuilder.Build(outer, new List<List<Vector2d>> {h1, h2, h3, h4});
+            var sk = SkeletonBuilder.Build(outer, new List<List<Vector2d>> { h1, h2, h3, h4 });
 
             SkeletonTestUtil.AssertExpectedPoints(expected, SkeletonTestUtil.GetFacePoints(sk));
+        }
+
+        private void AssertPolygonWithEdges(int numOfEdges, Skeleton sk)
+        {
+            foreach (var edgeOutput in sk.Edges)
+            {
+                var points = edgeOutput.Polygon;
+                if (points.Count == numOfEdges)
+                    return;
+            }
+            Assert.Fail("Expected polygon with number of edges: " + numOfEdges);
         }
     }
 }

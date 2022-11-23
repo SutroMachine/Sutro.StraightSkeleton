@@ -4,11 +4,24 @@ namespace Sutro.StraightSkeleton.Events.Chains
 {
     internal class SplitChain : IChain
     {
-        private readonly SplitEvent _splitEvent;
-
-        public SplitChain(SplitEvent @event)
+        public ChainType ChainType
         {
-            _splitEvent = @event;
+            get { return ChainType.Split; }
+        }
+
+        public Vertex CurrentVertex
+        {
+            get { return _splitEvent.Parent; }
+        }
+
+        public Edge NextEdge
+        {
+            get { return _splitEvent.Parent.NextEdge; }
+        }
+
+        public Vertex NextVertex
+        {
+            get { return _splitEvent.Parent.Next as Vertex; }
         }
 
         public Edge OppositeEdge
@@ -27,29 +40,16 @@ namespace Sutro.StraightSkeleton.Events.Chains
             get { return _splitEvent.Parent.PreviousEdge; }
         }
 
-        public Edge NextEdge
-        {
-            get { return _splitEvent.Parent.NextEdge; }
-        }
-
         public Vertex PreviousVertex
         {
             get { return _splitEvent.Parent.Previous as Vertex; }
         }
 
-        public Vertex NextVertex
+        public SplitChain(SplitEvent @event)
         {
-            get { return _splitEvent.Parent.Next as Vertex; }
+            _splitEvent = @event;
         }
 
-        public Vertex CurrentVertex
-        {
-            get { return _splitEvent.Parent; }
-        }
-
-        public ChainType ChainType
-        {
-            get { return ChainType.Split; }
-        }
+        private readonly SplitEvent _splitEvent;
     }
 }

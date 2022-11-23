@@ -1,5 +1,4 @@
-﻿
-namespace Sutro.StraightSkeleton.Primitives
+﻿namespace Sutro.StraightSkeleton.Primitives
 {
     /// <summary>
     ///     Geometry line in parametric form:
@@ -20,18 +19,6 @@ namespace Sutro.StraightSkeleton.Primitives
             U = pU;
         }
 
-        public LineLinear2d CreateLinearForm()
-        {
-            var x = this.A.X;
-            var y = this.A.Y;
-
-            var B = -U.X;
-            var A = U.Y;
-
-            var C = -(A*x + B*y);
-            return new LineLinear2d(A, B, C);
-        }
-
         public static Vector2d Collide(LineParametric2d ray, LineLinear2d line, double epsilon)
         {
             var collide = LineLinear2d.Collide(ray.CreateLinearForm(), line);
@@ -40,6 +27,18 @@ namespace Sutro.StraightSkeleton.Primitives
 
             var collideVector = collide - ray.A;
             return ray.U.Dot(collideVector) < epsilon ? Vector2d.Empty : collide;
+        }
+
+        public LineLinear2d CreateLinearForm()
+        {
+            var x = this.A.X;
+            var y = this.A.Y;
+
+            var B = -U.X;
+            var A = U.Y;
+
+            var C = -(A * x + B * y);
+            return new LineLinear2d(A, B, C);
         }
 
         public bool IsOnLeftSite(Vector2d point, double epsilon)
