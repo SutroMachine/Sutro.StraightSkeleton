@@ -82,12 +82,12 @@ namespace Sutro.StraightSkeleton
             return AddFacesToOutput(faces);
         }
 
-        internal static bool EdgeBehindBisector(LineParametric2d bisector, LineLinear2d edge)
+        internal static bool EdgeBehindBisector(Line2d bisector, LineLinear2d edge)
         {
             // Simple intersection test between the bisector starting at V and the
             // whole line containing the currently tested line segment ei rejects
             // the line segments laying "behind" the vertex V
-            return LineParametric2d.Collide(bisector, edge, SplitEpsilon) == Vector2d.MinValue;
+            return bisector.Collide(edge, SplitEpsilon) == Vector2d.MinValue;
         }
 
         /// <summary>
@@ -259,13 +259,13 @@ namespace Sutro.StraightSkeleton
             return count;
         }
 
-        private static LineParametric2d CalcBisector(Vector2d p, Edge e1, Edge e2)
+        private static Line2d CalcBisector(Vector2d p, Edge e1, Edge e2)
         {
             var norm1 = e1.Norm;
             var norm2 = e2.Norm;
 
             var bisector = CalcVectorBisector(norm1, norm2);
-            return new LineParametric2d(p, bisector);
+            return new Line2d(p, bisector);
         }
 
         private static SplitCandidate CalcCandidatePointForSplit(Vertex vertex, Edge edge)
@@ -285,12 +285,12 @@ namespace Sutro.StraightSkeleton
                 throw new InvalidOperationException("Ups this should not happen");
             }
 
-            var edgesBisectorLine = new LineParametric2d(edgesCollide, edgesBisector).CreateLinearForm();
+            var edgesBisectorLine = new Line2d(edgesCollide, edgesBisector).CreateLinearForm();
 
             // Compute the coordinates of the candidate point Bi as the intersection
             // between the bisector at V and the axis of the angle between one of
             // the edges starting at V and the tested line segment ei
-            var candidatePoint = LineParametric2d.Collide(vertex.Bisector, edgesBisectorLine, SplitEpsilon);
+            var candidatePoint = vertex.Bisector.Collide(edgesBisectorLine, SplitEpsilon);
 
             if (candidatePoint == Vector2d.MinValue)
                 return null;
@@ -518,7 +518,7 @@ namespace Sutro.StraightSkeleton
             }
         }
 
-        private static void CorrectBisectorDirection(LineParametric2d bisector, Vertex beginNextVertex,
+        private static void CorrectBisectorDirection(Line2d bisector, Vertex beginNextVertex,
             Vertex endPreviousVertex, Edge beginEdge, Edge endEdge)
         {
             // New bisector for vertex is created using connected edges. For
@@ -534,13 +534,13 @@ namespace Sutro.StraightSkeleton
             // Check if edges are parallel and in opposite direction to each other.
             if (beginEdge.Norm.Dot(endEdge.Norm) < -0.97)
             {
-                var n1 = PrimitiveUtils.FromTo(endPreviousVertex.Point, bisector.A).Normalized;
-                var n2 = PrimitiveUtils.FromTo(bisector.A, beginNextVertex.Point).Normalized;
+                var n1 = PrimitiveUtils.FromTo(endPreviousVertex.Point, bisector.Origin).Normalized;
+                var n2 = PrimitiveUtils.FromTo(bisector.Origin, beginNextVertex.Point).Normalized;
                 var bisectorPrediction = CalcVectorBisector(n1, n2);
 
                 // Bisector is calculated in opposite direction to edges and center.
-                if (bisector.U.Dot(bisectorPrediction) < 0)
-                    bisector.U *= -1;
+                if (bisector.Direction.Dot(bisectorPrediction) < 0)
+                    bisector.Direction *= -1;
             }
         }
 
@@ -1131,7 +1131,7 @@ loop:
 
             // lav will be removed so it is final vertex.
             AddMultiBackFaces(edgeList, new Vertex(center, @event.Distance,
-                LineParametric2d.Empty, null, null)
+                new Line2d(Vector2d.MinValue, Vector2d.MinValue), null, null)
             { IsProcessed = true });
         }
 

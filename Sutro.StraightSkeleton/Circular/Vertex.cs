@@ -7,7 +7,7 @@ namespace Sutro.StraightSkeleton.Circular
 {
     internal class Vertex : CircularNode
     {
-        public readonly LineParametric2d Bisector;
+        public readonly Line2d Bisector;
         public readonly double Distance;
         public readonly Edge NextEdge;
         public readonly Edge PreviousEdge;
@@ -16,7 +16,7 @@ namespace Sutro.StraightSkeleton.Circular
         public Vector2d Point;
         public FaceNode RightFace;
 
-        public Vertex(Vector2d point, double distance, LineParametric2d bisector,
+        public Vertex(Vector2d point, double distance, Line2d bisector,
             Edge previousEdge, Edge nextEdge)
         {
             Point = point;

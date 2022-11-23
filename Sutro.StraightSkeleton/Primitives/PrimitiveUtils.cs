@@ -96,15 +96,15 @@ namespace Sutro.StraightSkeleton.Primitives
         ///     <see href="http://softsurfer.com/Archive/algorithm_0102/algorithm_0102.htm" />
         /// </summary>
         /// <returns>class with intersection points. It never return null.</returns>
-        public static IntersectPoints IntersectRays2D(LineParametric2d r1, LineParametric2d r2)
+        public static IntersectPoints IntersectRays2D(Line2d r1, Line2d r2)
         {
-            var s1p0 = r1.A;
-            var s1p1 = r1.A + r1.U;
+            var s1p0 = r1.Origin;
+            var s1p1 = r1.Origin + r1.Direction;
 
-            var s2p0 = r2.A;
+            var s2p0 = r2.Origin;
 
-            var u = r1.U;
-            var v = r2.U;
+            var u = r1.Direction;
+            var v = r2.Direction;
 
             var w = s1p0 - s2p0;
             var d = Perp(u, v);
@@ -218,11 +218,11 @@ namespace Sutro.StraightSkeleton.Primitives
             return new IntersectPoints(IO);
         }
 
-        public static bool IsPointOnRay(Vector2d point, LineParametric2d ray, double epsilon)
+        public static bool IsPointOnRay(Vector2d point, Line2d ray, double epsilon)
         {
-            var rayDirection = new Vector2d(ray.U).Normalized;
+            var rayDirection = new Vector2d(ray.Direction).Normalized;
             // test if point is on ray
-            var pointVector = point - ray.A;
+            var pointVector = point - ray.Origin;
 
             var dot = rayDirection.Dot(pointVector);
 

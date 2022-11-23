@@ -24,7 +24,7 @@ namespace Sutro.StraightSkeleton.Circular
         }
 
         internal readonly LineLinear2d LineLinear2d;
-        internal LineParametric2d BisectorNext;
-        internal LineParametric2d BisectorPrevious;
+        internal Line2d BisectorNext;
+        internal Line2d BisectorPrevious;
     }
 }
