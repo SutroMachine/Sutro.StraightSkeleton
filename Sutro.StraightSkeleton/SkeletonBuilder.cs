@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using g3;
 using Sutro.StraightSkeleton.Circular;
 using Sutro.StraightSkeleton.Events;
 using Sutro.StraightSkeleton.Events.Chains;
@@ -86,7 +87,7 @@ namespace Sutro.StraightSkeleton
             // Simple intersection test between the bisector starting at V and the
             // whole line containing the currently tested line segment ei rejects
             // the line segments laying "behind" the vertex V
-            return LineParametric2d.Collide(bisector, edge, SplitEpsilon) == Vector2d.Empty;
+            return LineParametric2d.Collide(bisector, edge, SplitEpsilon) == Vector2d.MinValue;
         }
 
         /// <summary>
@@ -279,7 +280,7 @@ namespace Sutro.StraightSkeleton
 
             // Check should be performed to exclude the case when one of the
             // line segments starting at V is parallel to ei.
-            if (edgesCollide == Vector2d.Empty)
+            if (edgesCollide == Vector2d.MinValue)
             {
                 throw new InvalidOperationException("Ups this should not happen");
             }
@@ -291,7 +292,7 @@ namespace Sutro.StraightSkeleton
             // the edges starting at V and the tested line segment ei
             var candidatePoint = LineParametric2d.Collide(vertex.Bisector, edgesBisectorLine, SplitEpsilon);
 
-            if (candidatePoint == Vector2d.Empty)
+            if (candidatePoint == Vector2d.MinValue)
                 return null;
 
             if (edge.BisectorPrevious.IsOnRightSite(candidatePoint, SplitEpsilon)
@@ -304,7 +305,7 @@ namespace Sutro.StraightSkeleton
                 if (edge.BisectorNext.IsOnRightSite(candidatePoint, SplitEpsilon))
                     return new SplitCandidate(candidatePoint, distance, null, edge.Begin);
 
-                return new SplitCandidate(candidatePoint, distance, edge, Vector2d.Empty);
+                return new SplitCandidate(candidatePoint, distance, edge, Vector2d.MinValue);
             }
             return null;
         }
@@ -315,7 +316,7 @@ namespace Sutro.StraightSkeleton
             var vector = intersect - currentEdge.Begin;
 
             var pointOnVector = PrimitiveUtils.OrthogonalProjection(edge, vector);
-            return vector.DistanceTo(pointOnVector);
+            return vector.Distance(pointOnVector);
         }
 
         private static List<SplitCandidate> CalcOppositeEdges(Vertex vertex, List<Edge> edges)
@@ -432,15 +433,15 @@ namespace Sutro.StraightSkeleton
             var point1 = ComputeIntersectionBisectors(vertex, nextVertex);
             var point2 = ComputeIntersectionBisectors(previousVertex, vertex);
 
-            if (point1 == Vector2d.Empty && point2 == Vector2d.Empty)
+            if (point1 == Vector2d.MinValue && point2 == Vector2d.MinValue)
                 return -1;
 
             var distance1 = double.MaxValue;
             var distance2 = double.MaxValue;
 
-            if (point1 != Vector2d.Empty)
+            if (point1 != Vector2d.MinValue)
                 distance1 = point.DistanceSquared(point1);
-            if (point2 != Vector2d.Empty)
+            if (point2 != Vector2d.MinValue)
                 distance2 = point.DistanceSquared(point2);
 
             if (Math.Abs(distance1 - SplitEpsilon) < distance2)
@@ -455,7 +456,7 @@ namespace Sutro.StraightSkeleton
             PriorityQueue<SkeletonEvent> queue)
         {
             var point = ComputeIntersectionBisectors(previousVertex, nextVertex);
-            if (point != Vector2d.Empty)
+            if (point != Vector2d.MinValue)
                 queue.Add(CreateEdgeEvent(point, previousVertex, nextVertex));
         }
 
@@ -475,7 +476,7 @@ namespace Sutro.StraightSkeleton
 
             // skip the same points
             if (vertexPrevious.Point == intersect || vertexNext.Point == intersect)
-                return Vector2d.Empty;
+                return Vector2d.MinValue;
 
             return intersect;
         }
@@ -507,7 +508,7 @@ namespace Sutro.StraightSkeleton
                 }
 
                 // check if it is vertex split event
-                if (oppositeEdge.OppositePoint != Vector2d.Empty)
+                if (oppositeEdge.OppositePoint != Vector2d.MinValue)
                 {
                     // some of vertex event can share the same opposite point
                     queue.Add(new VertexSplitEvent(point, oppositeEdge.Distance, vertex));
@@ -533,13 +534,13 @@ namespace Sutro.StraightSkeleton
             // Check if edges are parallel and in opposite direction to each other.
             if (beginEdge.Norm.Dot(endEdge.Norm) < -0.97)
             {
-                var n1 = PrimitiveUtils.FromTo(endPreviousVertex.Point, bisector.A).Normalized();
-                var n2 = PrimitiveUtils.FromTo(bisector.A, beginNextVertex.Point).Normalized();
+                var n1 = PrimitiveUtils.FromTo(endPreviousVertex.Point, bisector.A).Normalized;
+                var n2 = PrimitiveUtils.FromTo(bisector.A, beginNextVertex.Point).Normalized;
                 var bisectorPrediction = CalcVectorBisector(n1, n2);
 
                 // Bisector is calculated in opposite direction to edges and center.
                 if (bisector.U.Dot(bisectorPrediction) < 0)
-                    bisector.U.Negate();
+                    bisector.U *= -1;
             }
         }
 
@@ -844,7 +845,7 @@ loop:
                         j--;
                     }
                     // is near
-                    else if (eventCenter.DistanceTo(test.V) < SplitEpsilon)
+                    else if (eventCenter.Distance(test.V) < SplitEpsilon)
                     {
                         // group all event when the result point are near each other
                         var item = levelEvents[j];
@@ -1195,8 +1196,8 @@ loop:
 
             private static double Angle(Vector2d p0, Vector2d p1)
             {
-                var dx = p1.X - p0.X;
-                var dy = p1.Y - p0.Y;
+                var dx = p1.x - p0.x;
+                var dy = p1.y - p0.y;
                 return Math.Atan2(dy, dx);
             }
         }

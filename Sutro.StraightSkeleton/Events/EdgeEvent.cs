@@ -1,4 +1,5 @@
 ﻿using System;
+using g3;
 using Sutro.StraightSkeleton.Circular;
 using Sutro.StraightSkeleton.Primitives;
 

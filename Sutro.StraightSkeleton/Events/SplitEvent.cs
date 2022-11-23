@@ -1,6 +1,5 @@
-﻿using System;
+﻿using g3;
 using Sutro.StraightSkeleton.Circular;
-using Sutro.StraightSkeleton.Primitives;
 
 namespace Sutro.StraightSkeleton.Events
 {
@@ -21,7 +20,7 @@ namespace Sutro.StraightSkeleton.Events
             OppositeEdge = oppositeEdge;
         }
 
-        public override String ToString()
+        public override string ToString()
         {
             return "SplitEvent [V=" + V + ", Parent=" + (Parent != null ? Parent.Point.ToString() : "null") +
                    ", Distance=" + Distance + "]";

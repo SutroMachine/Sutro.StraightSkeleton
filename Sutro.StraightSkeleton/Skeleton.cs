@@ -1,5 +1,5 @@
 ﻿using System.Collections.Generic;
-using Sutro.StraightSkeleton.Primitives;
+using g3;
 
 namespace Sutro.StraightSkeleton
 {

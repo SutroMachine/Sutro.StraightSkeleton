@@ -1,4 +1,5 @@
-﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using g3;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Sutro.StraightSkeleton.Primitives;
 using System.Collections.Generic;
 

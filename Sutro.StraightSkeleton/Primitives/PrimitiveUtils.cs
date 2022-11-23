@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using g3;
 
 namespace Sutro.StraightSkeleton.Primitives
 {
@@ -18,24 +19,24 @@ namespace Sutro.StraightSkeleton.Primitives
 
             // 0 - 180
             var ret = new Vector2d(norm1);
-            ret.Negate();
+            ret *= -1;
             ret += norm2;
 
             // 270 - 360
             if (e1v.Dot(norm2) < 0)
-                ret.Negate();
+                ret *= -1;
 
             return ret;
         }
 
         public static Vector2d FromTo(Vector2d begin, Vector2d end)
         {
-            return new Vector2d(end.X - begin.X, end.Y - begin.Y);
+            return new Vector2d(end.x - begin.x, end.y - begin.y);
         }
 
         public static Vector2d OrthogonalLeft(Vector2d v)
         {
-            return new Vector2d(-v.Y, v.X);
+            return new Vector2d(-v.y, v.x);
         }
 
         /// <summary>
@@ -43,20 +44,20 @@ namespace Sutro.StraightSkeleton.Primitives
         /// </summary>
         public static Vector2d OrthogonalProjection(Vector2d unitVector, Vector2d vectorToProject)
         {
-            var n = new Vector2d(unitVector).Normalized();
+            var n = new Vector2d(unitVector).Normalized;
 
-            var px = vectorToProject.X;
-            var py = vectorToProject.Y;
+            var px = vectorToProject.x;
+            var py = vectorToProject.y;
 
-            var ax = n.X;
-            var ay = n.Y;
+            var ax = n.x;
+            var ay = n.y;
 
             return new Vector2d(px * ax * ax + py * ax * ay, px * ax * ay + py * ay * ay);
         }
 
         public static Vector2d OrthogonalRight(Vector2d v)
         {
-            return new Vector2d(v.Y, -v.X);
+            return new Vector2d(v.y, -v.x);
         }
 
         #endregion Vector specific
@@ -78,12 +79,12 @@ namespace Sutro.StraightSkeleton.Primitives
             }
 
             public IntersectPoints(Vector2d intersect)
-                : this(intersect, Vector2d.Empty)
+                : this(intersect, Vector2d.MinValue)
             {
             }
 
             public IntersectPoints()
-                : this(Vector2d.Empty, Vector2d.Empty)
+                : this(Vector2d.MinValue, Vector2d.MinValue)
             {
             }
         }
@@ -149,15 +150,15 @@ namespace Sutro.StraightSkeleton.Primitives
                 double t0, t1;
                 // endpoints of S1 in eqn for S2
                 var w2 = s1p1 - s2p0;
-                if (v.X != 0)
+                if (v.x != 0)
                 {
-                    t0 = w.X / v.X;
-                    t1 = w2.X / v.X;
+                    t0 = w.x / v.x;
+                    t1 = w2.x / v.x;
                 }
                 else
                 {
-                    t0 = w.Y / v.Y;
-                    t1 = w2.Y / v.Y;
+                    t0 = w.y / v.y;
+                    t1 = w2.y / v.y;
                 }
                 if (t0 > t1)
                 {
@@ -219,7 +220,7 @@ namespace Sutro.StraightSkeleton.Primitives
 
         public static bool IsPointOnRay(Vector2d point, LineParametric2d ray, double epsilon)
         {
-            var rayDirection = new Vector2d(ray.U).Normalized();
+            var rayDirection = new Vector2d(ray.U).Normalized;
             // test if point is on ray
             var pointVector = point - ray.A;
 
@@ -228,9 +229,9 @@ namespace Sutro.StraightSkeleton.Primitives
             if (dot < epsilon)
                 return false;
 
-            var x = rayDirection.X;
-            rayDirection.X = rayDirection.Y;
-            rayDirection.Y = -x;
+            var x = rayDirection.x;
+            rayDirection.x = rayDirection.y;
+            rayDirection.y = -x;
 
             dot = rayDirection.Dot(pointVector);
 
@@ -260,7 +261,7 @@ namespace Sutro.StraightSkeleton.Primitives
         /// <summary> Perp Dot Product. </summary>
         private static double Perp(Vector2d u, Vector2d v)
         {
-            return u.X * v.Y - u.Y * v.X;
+            return u.x * v.y - u.y * v.x;
         }
 
         #endregion Ray specific
@@ -298,12 +299,12 @@ namespace Sutro.StraightSkeleton.Primitives
                 it++;
                 var node2 = i == numpoints - 1 ? first : points[it];
 
-                var x = point.X;
-                var y = point.Y;
+                var x = point.x;
+                var y = point.y;
 
-                if (node1.Y < y && node2.Y >= y || node2.Y < y && node1.Y >= y)
+                if (node1.y < y && node2.y >= y || node2.y < y && node1.y >= y)
                 {
-                    if (node1.X + (y - node1.Y) / (node2.Y - node1.Y) * (node2.X - node1.X) < x)
+                    if (node1.x + (y - node1.y) / (node2.y - node1.y) * (node2.x - node1.x) < x)
                         oddNodes = !oddNodes;
                 }
             }
@@ -329,7 +330,7 @@ namespace Sutro.StraightSkeleton.Primitives
             var n = polygon.Count;
             double A = 0.0f;
             for (int p = n - 1, q = 0; q < n; p = q++)
-                A += polygon[p].X * polygon[q].Y - polygon[q].X * polygon[p].Y;
+                A += polygon[p].x * polygon[q].y - polygon[q].x * polygon[p].y;
 
             return A * 0.5f;
         }

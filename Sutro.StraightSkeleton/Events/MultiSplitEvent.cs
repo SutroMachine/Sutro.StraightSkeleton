@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
+using g3;
 using Sutro.StraightSkeleton.Events.Chains;
-using Sutro.StraightSkeleton.Primitives;
 
 namespace Sutro.StraightSkeleton.Events
 {
