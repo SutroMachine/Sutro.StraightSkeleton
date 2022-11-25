@@ -4,7 +4,7 @@ using g3;
 
 namespace Sutro.StraightSkeleton.Primitives
 {
-    internal static class PrimitiveUtils
+    internal static class Vector2dExtensions
     {
         #region Vector specific
 
@@ -61,34 +61,35 @@ namespace Sutro.StraightSkeleton.Primitives
         }
 
         #endregion Vector specific
+    }
 
-        #region Ray specific
+    public class IntersectPoints
+    {
+        /// <summary> Intersection point or begin of intersection segment. </summary>
+        public readonly Vector2d Intersect;
 
-        public class IntersectPoints
+        /// <summary> Intersection end. </summary>
+        public readonly Vector2d IntersectEnd;
+
+        public IntersectPoints(Vector2d intersect, Vector2d intersectEnd)
         {
-            /// <summary> Intersection point or begin of intersection segment. </summary>
-            public readonly Vector2d Intersect;
-
-            /// <summary> Intersection end. </summary>
-            public readonly Vector2d IntersectEnd;
-
-            public IntersectPoints(Vector2d intersect, Vector2d intersectEnd)
-            {
-                Intersect = intersect;
-                IntersectEnd = intersectEnd;
-            }
-
-            public IntersectPoints(Vector2d intersect)
-                : this(intersect, Vector2d.MinValue)
-            {
-            }
-
-            public IntersectPoints()
-                : this(Vector2d.MinValue, Vector2d.MinValue)
-            {
-            }
+            Intersect = intersect;
+            IntersectEnd = intersectEnd;
         }
 
+        public IntersectPoints(Vector2d intersect)
+            : this(intersect, Vector2d.MinValue)
+        {
+        }
+
+        public IntersectPoints()
+            : this(Vector2d.MinValue, Vector2d.MinValue)
+        {
+        }
+    }
+
+    internal static class RayExtensions
+    {
         /// <summary>
         ///     Calculate intersection points for rays. It can return more then one
         ///     intersection point when rays overlaps.
@@ -107,20 +108,20 @@ namespace Sutro.StraightSkeleton.Primitives
             var v = r2.Direction;
 
             var w = s1p0 - s2p0;
-            var d = Perp(u, v);
+            var d = u.DotPerp(v);
 
             // test if they are parallel (includes either being a point)
             if (Math.Abs(d) < SmallNum)
             {
                 // they are NOT collinear
                 // S1 and S2 are parallel
-                if (Perp(u, w) != 0 || Perp(v, w) != 0)
+                if (u.DotPerp(w) != 0 || v.DotPerp(w) != 0)
                     return Empty;
 
                 // they are collinear or degenerate
                 // check if they are degenerate points
-                var du = Dot(u, u);
-                var dv = Dot(v, v);
+                var du = u.Dot(u);
+                var dv = v.Dot(v);
                 if (du == 0 && dv == 0)
                 {
                     // both segments are points
@@ -201,12 +202,12 @@ namespace Sutro.StraightSkeleton.Primitives
 
             // the segments are skew and may intersect in a point
             // get the intersect parameter for S1
-            var sI = Perp(v, w) / d;
+            var sI = v.DotPerp(w) / d;
             if (sI < 0 /* || sI > 1 */)
                 return Empty;
 
             // get the intersect parameter for S2
-            var tI = Perp(u, w) / d;
+            var tI = u.DotPerp(w) / d;
             if (tI < 0 /* || tI > 1 */)
                 return Empty;
 
@@ -244,11 +245,6 @@ namespace Sutro.StraightSkeleton.Primitives
         /// <summary> Return value if there is no intersection. </summary>
         private static readonly IntersectPoints Empty = new IntersectPoints();
 
-        private static double Dot(Vector2d u, Vector2d v)
-        {
-            return u.Dot(v);
-        }
-
         private static bool InCollinearRay(Vector2d p, Vector2d rayStart, Vector2d rayDirection)
         {
             // test if point is on ray
@@ -257,84 +253,5 @@ namespace Sutro.StraightSkeleton.Primitives
 
             return !(dot < 0);
         }
-
-        /// <summary> Perp Dot Product. </summary>
-        private static double Perp(Vector2d u, Vector2d v)
-        {
-            return u.x * v.y - u.y * v.x;
-        }
-
-        #endregion Ray specific
-
-        #region Polygon specific
-
-        /// <summary> Check if polygon is clockwise. </summary>
-        /// <param name="polygon"> List of polygon points. </param>
-        /// <returns> If polygon is clockwise. </returns>
-        public static bool IsClockwisePolygon(List<Vector2d> polygon)
-        {
-            return Area(polygon) < 0;
-        }
-
-        /// <summary>
-        ///     Test if point is inside polygon.
-        ///     <see href="http://en.wikipedia.org/wiki/Point_in_polygon" />
-        ///     <see href="http://en.wikipedia.org/wiki/Even-odd_rule" />
-        ///     <see href="http://paulbourke.net/geometry/insidepoly/" />
-        /// </summary>
-        public static bool IsPointInsidePolygon(Vector2d point, List<Vector2d> points)
-        {
-            var numpoints = points.Count;
-
-            if (numpoints < 3)
-                return false;
-
-            var it = 0;
-            var first = points[it];
-            var oddNodes = false;
-
-            for (var i = 0; i < numpoints; i++)
-            {
-                var node1 = points[it];
-                it++;
-                var node2 = i == numpoints - 1 ? first : points[it];
-
-                var x = point.x;
-                var y = point.y;
-
-                if (node1.y < y && node2.y >= y || node2.y < y && node1.y >= y)
-                {
-                    if (node1.x + (y - node1.y) / (node2.y - node1.y) * (node2.x - node1.x) < x)
-                        oddNodes = !oddNodes;
-                }
-            }
-
-            return oddNodes;
-        }
-
-        /// <summary> Always returns points ordered as counter clockwise. </summary>
-        /// <param name="polygon"> Polygon as list of points. </param>
-        /// <returns> Counter clockwise polygon.</returns>
-        public static List<Vector2d> MakeCounterClockwise(List<Vector2d> polygon)
-        {
-            if (IsClockwisePolygon(polygon))
-                polygon.Reverse();
-            return polygon;
-        }
-
-        /// <summary> Calculate area of polygon outline. For clockwise are will be less then. </summary>
-        /// <param name="polygon">List of polygon points.</param>
-        /// <returns> Area. </returns>
-        private static double Area(List<Vector2d> polygon)
-        {
-            var n = polygon.Count;
-            double A = 0.0f;
-            for (int p = n - 1, q = 0; q < n; p = q++)
-                A += polygon[p].x * polygon[q].y - polygon[q].x * polygon[p].y;
-
-            return A * 0.5f;
-        }
-
-        #endregion Polygon specific
     }
 }

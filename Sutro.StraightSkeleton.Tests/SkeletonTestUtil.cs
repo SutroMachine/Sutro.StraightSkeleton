@@ -45,12 +45,12 @@ namespace Sutro.StraightSkeleton.Tests
 
         public static List<Vector2d> GetFacePoints(Skeleton sk)
         {
-            List<Vector2d> ret = new List<Vector2d>();
+            var ret = new List<Vector2d>();
 
             foreach (EdgeResult edgeOutput in sk.Edges)
             {
-                List<Vector2d> points = edgeOutput.Polygon;
-                foreach (Vector2d vector2d in points)
+                var points = edgeOutput.Polygon;
+                foreach (Vector2d vector2d in points.VerticesItr(false))
                 {
                     if (!ContainsEpsilon(ret, vector2d))
                         ret.Add(vector2d);

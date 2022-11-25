@@ -20,28 +20,47 @@ namespace Sutro.StraightSkeleton
     public class SkeletonBuilder
     {
         /// <summary> Creates straight skeleton for given polygon. </summary>
-        public static Skeleton Build(List<Vector2d> polygon)
+        public static Skeleton Build(List<Vector2d> points)
         {
-            return Build(polygon, null);
+            return Build(new GeneralPolygon2d(new Polygon2d(points)));
+        }
+
+        public static Skeleton Build(Polygon2d polygon)
+        {
+            return Build(new GeneralPolygon2d(polygon));
         }
 
         /// <summary> Creates straight skeleton for given polygon with holes. </summary>
-        public static Skeleton Build(List<Vector2d> polygon, List<List<Vector2d>> holes)
+        public static Skeleton Build(List<Vector2d> outer, List<List<Vector2d>> holes)
         {
-            polygon = InitPolygon(polygon);
-            holes = MakeClockwise(holes);
+            var gpoly = new GeneralPolygon2d(new Polygon2d(outer));
+
+            if (holes != null)
+            {
+                foreach (var hole in holes)
+                {
+                    gpoly.AddHole(new Polygon2d(hole), bCheckContainment: false, bCheckOrientation: false);
+                }
+            }
+            return Build(gpoly);
+        }
+
+        /// <summary> Creates straight skeleton for given polygon with holes. </summary>
+        public static Skeleton Build(GeneralPolygon2d gpoly)
+        {
+            ValidateGeneralPolygon(gpoly);
+            gpoly.EnforceCounterClockwise();
 
             var queue = new PriorityQueue<SkeletonEvent>(3, new SkeletonEventDistanseComparer());
             var sLav = new HashSet<CircularList<Vertex>>();
             var faces = new List<FaceQueue>();
             var edges = new List<Edge>();
 
-            InitSlav(polygon, sLav, edges, faces);
+            InitSlav(gpoly.Outer, sLav, edges, faces);
 
-            if (holes != null)
+            foreach (var inner in gpoly.Holes)
             {
-                foreach (var inner in holes)
-                    InitSlav(inner, sLav, edges, faces);
+                InitSlav(inner, sLav, edges, faces);
             }
 
             InitEvents(sLav, queue, edges);
@@ -100,10 +119,10 @@ namespace Sutro.StraightSkeleton
         /// <returns>previous opposite edge if it is vertex split event.</returns>
         protected static Edge VertexOpositeEdge(Vector2d point, Edge edge)
         {
-            if (PrimitiveUtils.IsPointOnRay(point, edge.BisectorNext, SplitEpsilon))
+            if (RayExtensions.IsPointOnRay(point, edge.BisectorNext, SplitEpsilon))
                 return edge;
 
-            if (PrimitiveUtils.IsPointOnRay(point, edge.BisectorPrevious, SplitEpsilon))
+            if (RayExtensions.IsPointOnRay(point, edge.BisectorPrevious, SplitEpsilon))
                 return edge.Previous as Edge;
             return null;
         }
@@ -151,11 +170,11 @@ namespace Sutro.StraightSkeleton
             {
                 if (face.Size > 0)
                 {
-                    var faceList = new List<Vector2d>();
+                    var faceList = new Polygon2d();
                     foreach (var fn in face.Iterate())
                     {
                         var point = fn.Vertex.Point;
-                        faceList.Add(point);
+                        faceList.AppendVertex(point);
                         if (!distances.ContainsKey(point))
                             distances.Add(point, fn.Vertex.Distance);
                     }
@@ -315,7 +334,7 @@ namespace Sutro.StraightSkeleton
             var edge = currentEdge.End - currentEdge.Begin;
             var vector = intersect - currentEdge.Begin;
 
-            var pointOnVector = PrimitiveUtils.OrthogonalProjection(edge, vector);
+            var pointOnVector = Vector2dExtensions.OrthogonalProjection(edge, vector);
             return vector.Distance(pointOnVector);
         }
 
@@ -340,7 +359,7 @@ namespace Sutro.StraightSkeleton
 
         private static Vector2d CalcVectorBisector(Vector2d norm1, Vector2d norm2)
         {
-            return PrimitiveUtils.BisectorNormalized(norm1, norm2);
+            return Vector2dExtensions.BisectorNormalized(norm1, norm2);
         }
 
         private static Vertex ChooseOppositeEdgeLav(List<Vertex> edgeLavs, Edge oppositeEdge, Vector2d center)
@@ -385,7 +404,10 @@ namespace Sutro.StraightSkeleton
                     points.Add(next.Point);
                     next = next.Next as Vertex;
                 }
-                if (PrimitiveUtils.IsPointInsidePolygon(center, points))
+
+                var poly = new Polygon2d(points);
+
+                if (poly.Contains(center))
                     return end;
             }
             throw new InvalidOperationException("Could not find lav for opposite edge, it could be correct " +
@@ -471,7 +493,7 @@ namespace Sutro.StraightSkeleton
             var bisectorPrevious = vertexPrevious.Bisector;
             var bisectorNext = vertexNext.Bisector;
 
-            var intersectRays2d = PrimitiveUtils.IntersectRays2D(bisectorPrevious, bisectorNext);
+            var intersectRays2d = RayExtensions.IntersectRays2D(bisectorPrevious, bisectorNext);
             var intersect = intersectRays2d.Intersect;
 
             // skip the same points
@@ -534,8 +556,8 @@ namespace Sutro.StraightSkeleton
             // Check if edges are parallel and in opposite direction to each other.
             if (beginEdge.Norm.Dot(endEdge.Norm) < -0.97)
             {
-                var n1 = PrimitiveUtils.FromTo(endPreviousVertex.Point, bisector.Origin).Normalized;
-                var n2 = PrimitiveUtils.FromTo(bisector.Origin, beginNextVertex.Point).Normalized;
+                var n1 = Vector2dExtensions.FromTo(endPreviousVertex.Point, bisector.Origin).Normalized;
+                var n2 = Vector2dExtensions.FromTo(bisector.Origin, beginNextVertex.Point).Normalized;
                 var bisectorPrediction = CalcVectorBisector(n1, n2);
 
                 // Bisector is calculated in opposite direction to edges and center.
@@ -882,23 +904,12 @@ loop:
             }
         }
 
-        private static List<Vector2d> InitPolygon(List<Vector2d> polygon)
-        {
-            if (polygon == null)
-                throw new ArgumentException("polygon can't be null");
-
-            if (polygon[0].Equals(polygon[polygon.Count - 1]))
-                throw new ArgumentException("polygon can't start and end with the same point");
-
-            return MakeCounterClockwise(polygon);
-        }
-
-        private static void InitSlav(List<Vector2d> polygon, HashSet<CircularList<Vertex>> sLav,
+        private static void InitSlav(Polygon2d polygon, HashSet<CircularList<Vertex>> sLav,
             List<Edge> edges, List<FaceQueue> faces)
         {
             var edgesList = new CircularList<Edge>();
 
-            var size = polygon.Count;
+            var size = polygon.VertexCount;
             for (var i = 0; i < size; i++)
             {
                 var j = (i + 1) % size;
@@ -998,30 +1009,6 @@ loop:
                     level.Add(nextLevelEvent);
             }
             return level;
-        }
-
-        private static List<List<Vector2d>> MakeClockwise(List<List<Vector2d>> holes)
-        {
-            if (holes == null)
-                return null;
-
-            var ret = new List<List<Vector2d>>(holes.Count);
-            foreach (var hole in holes)
-            {
-                if (PrimitiveUtils.IsClockwisePolygon(hole))
-                    ret.Add(hole);
-                else
-                {
-                    hole.Reverse();
-                    ret.Add(hole);
-                }
-            }
-            return ret;
-        }
-
-        private static List<Vector2d> MakeCounterClockwise(List<Vector2d> polygon)
-        {
-            return PrimitiveUtils.MakeCounterClockwise(polygon);
         }
 
         private static void MultiEdgeEvent(MultiEdgeEvent @event,
@@ -1170,6 +1157,24 @@ loop:
                     break;
                 queue.Next();
             }
+        }
+
+        private static void ValidateGeneralPolygon(GeneralPolygon2d gpolygon)
+        {
+            ValidatePolygon(gpolygon.Outer);
+            foreach (var hole in gpolygon.Holes)
+            {
+                ValidatePolygon(hole);
+            }
+        }
+
+        private static void ValidatePolygon(Polygon2d polygon)
+        {
+            if (polygon == null)
+                throw new ArgumentException("polygon can't be null");
+
+            if (polygon[0].Equals(polygon[polygon.VertexCount - 1]))
+                throw new ArgumentException("polygon can't start and end with the same point");
         }
 
         #region Nested classes

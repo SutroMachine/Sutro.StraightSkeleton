@@ -29,13 +29,13 @@ namespace Sutro.StraightSkeleton.Primitives
         public static bool IsOnLeftSite(this Line2d line, Vector2d point, double epsilon)
         {
             var direction = point - line.Origin;
-            return PrimitiveUtils.OrthogonalRight(line.Direction).Dot(direction) < epsilon;
+            return Vector2dExtensions.OrthogonalRight(line.Direction).Dot(direction) < epsilon;
         }
 
         public static bool IsOnRightSite(this Line2d line, Vector2d point, double epsilon)
         {
             var direction = point - line.Origin;
-            return PrimitiveUtils.OrthogonalRight(line.Direction).Dot(direction) > -epsilon;
+            return Vector2dExtensions.OrthogonalRight(line.Direction).Dot(direction) > -epsilon;
         }
     }
 }
