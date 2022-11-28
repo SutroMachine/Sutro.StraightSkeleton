@@ -1,15 +1,15 @@
 ﻿using System.Collections.Generic;
+using g3;
 using Sutro.StraightSkeleton.Circular;
-using Sutro.StraightSkeleton.Primitives;
 
 namespace Sutro.StraightSkeleton
 {
     public class EdgeResult
     {
         public readonly Edge Edge;
-        public readonly List<Vector2d> Polygon;
+        public readonly Polygon2d Polygon;
 
-        public EdgeResult(Edge edge, List<Vector2d> polygon)
+        public EdgeResult(Edge edge, Polygon2d polygon)
         {
             Edge = edge;
             Polygon = polygon;

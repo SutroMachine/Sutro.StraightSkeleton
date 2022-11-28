@@ -1,4 +1,5 @@
-﻿using System;
+﻿using g3;
+using System;
 
 namespace Sutro.StraightSkeleton.Primitives
 {
@@ -16,9 +17,9 @@ namespace Sutro.StraightSkeleton.Primitives
         /// <summary> Linear line from two points on line. </summary>
         public LineLinear2d(Vector2d pP1, Vector2d pP2)
         {
-            A = pP1.Y - pP2.Y;
-            B = pP2.X - pP1.X;
-            C = pP1.X * pP2.Y - pP2.X * pP1.Y;
+            A = pP1.y - pP2.y;
+            B = pP2.x - pP1.x;
+            C = pP1.x * pP2.y - pP2.x * pP1.y;
         }
 
         /// <summary> Linear line. </summary>
@@ -42,7 +43,7 @@ namespace Sutro.StraightSkeleton.Primitives
             var WBC = B1 * C2 - B2 * C1;
             var WCA = C1 * A2 - C2 * A1;
 
-            return WAB == 0 ? Vector2d.Empty : new Vector2d(WBC / WAB, WCA / WAB);
+            return WAB == 0 ? Vector2d.MinValue : new Vector2d(WBC / WAB, WCA / WAB);
         }
 
         /// <summary> Collision point of two lines. </summary>
@@ -56,7 +57,7 @@ namespace Sutro.StraightSkeleton.Primitives
         /// <summary> Check whether point belongs to line. </summary>
         public bool Contains(Vector2d point)
         {
-            return Math.Abs((point.X * A + point.Y * B + C)) < double.Epsilon;
+            return Math.Abs((point.x * A + point.y * B + C)) < double.Epsilon;
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿using Sutro.StraightSkeleton.Primitives;
+﻿using g3;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,16 +11,22 @@ namespace Sutro.StraightSkeleton.Tests
         public static void AssertExpectedPoints(List<Vector2d> expectedList, List<Vector2d> givenList)
         {
             StringBuilder sb = new StringBuilder();
+
+            if (expectedList.Count != givenList.Count)
+            {
+                sb.AppendFormat("Number of points doesn't match; expected has {0} points, given list has {1} points\n", expectedList.Count, givenList.Count);
+            }
+
             foreach (Vector2d expected in expectedList)
             {
                 if (!ContainsEpsilon(givenList, expected))
-                    sb.AppendFormat("Can't find expected point ({0}, {1}) in given list\n", expected.X, expected.Y);
+                    sb.AppendFormat("Can't find expected point ({0}, {1}) in given list\n", expected.x, expected.y);
             }
 
             foreach (Vector2d given in givenList)
             {
                 if (!ContainsEpsilon(expectedList, given))
-                    sb.AppendFormat("Can't find given point ({0}, {1}) in expected list\n", given.X, given.Y);
+                    sb.AppendFormat("Can't find given point ({0}, {1}) in expected list\n", given.x, given.y);
             }
 
             if (sb.Length > 0)
@@ -29,7 +35,7 @@ namespace Sutro.StraightSkeleton.Tests
 
         public static bool ContainsEpsilon(List<Vector2d> list, Vector2d p)
         {
-            return list.Any(l => EqualEpsilon(l.X, p.X) && EqualEpsilon(l.Y, p.Y));
+            return list.Any(l => EqualEpsilon(l.x, p.x) && EqualEpsilon(l.y, p.y));
         }
 
         public static bool EqualEpsilon(double d1, double d2)
@@ -39,12 +45,12 @@ namespace Sutro.StraightSkeleton.Tests
 
         public static List<Vector2d> GetFacePoints(Skeleton sk)
         {
-            List<Vector2d> ret = new List<Vector2d>();
+            var ret = new List<Vector2d>();
 
             foreach (EdgeResult edgeOutput in sk.Edges)
             {
-                List<Vector2d> points = edgeOutput.Polygon;
-                foreach (Vector2d vector2d in points)
+                var points = edgeOutput.Polygon;
+                foreach (Vector2d vector2d in points.VerticesItr(false))
                 {
                     if (!ContainsEpsilon(ret, vector2d))
                         ret.Add(vector2d);

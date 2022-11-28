@@ -1,5 +1,5 @@
-﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Sutro.StraightSkeleton.Primitives;
+﻿using g3;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Collections.Generic;
 
 namespace Sutro.StraightSkeleton.Tests
@@ -222,7 +222,7 @@ namespace Sutro.StraightSkeleton.Tests
             foreach (var edgeOutput in sk.Edges)
             {
                 var points = edgeOutput.Polygon;
-                if (points.Count == numOfEdges)
+                if (points.VertexCount == numOfEdges)
                     return;
             }
             Assert.Fail("Expected polygon with number of edges: " + numOfEdges);

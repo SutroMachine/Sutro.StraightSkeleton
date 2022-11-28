@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using g3;
 using Sutro.StraightSkeleton.Circular;
 using Sutro.StraightSkeleton.Events;
 using Sutro.StraightSkeleton.Events.Chains;
@@ -19,28 +20,47 @@ namespace Sutro.StraightSkeleton
     public class SkeletonBuilder
     {
         /// <summary> Creates straight skeleton for given polygon. </summary>
-        public static Skeleton Build(List<Vector2d> polygon)
+        public static Skeleton Build(List<Vector2d> points)
         {
-            return Build(polygon, null);
+            return Build(new GeneralPolygon2d(new Polygon2d(points)));
+        }
+
+        public static Skeleton Build(Polygon2d polygon)
+        {
+            return Build(new GeneralPolygon2d(polygon));
         }
 
         /// <summary> Creates straight skeleton for given polygon with holes. </summary>
-        public static Skeleton Build(List<Vector2d> polygon, List<List<Vector2d>> holes)
+        public static Skeleton Build(List<Vector2d> outer, List<List<Vector2d>> holes)
         {
-            polygon = InitPolygon(polygon);
-            holes = MakeClockwise(holes);
+            var gpoly = new GeneralPolygon2d(new Polygon2d(outer));
+
+            if (holes != null)
+            {
+                foreach (var hole in holes)
+                {
+                    gpoly.AddHole(new Polygon2d(hole), bCheckContainment: false, bCheckOrientation: false);
+                }
+            }
+            return Build(gpoly);
+        }
+
+        /// <summary> Creates straight skeleton for given polygon with holes. </summary>
+        public static Skeleton Build(GeneralPolygon2d gpoly)
+        {
+            ValidateGeneralPolygon(gpoly);
+            gpoly.EnforceCounterClockwise();
 
             var queue = new PriorityQueue<SkeletonEvent>(3, new SkeletonEventDistanseComparer());
             var sLav = new HashSet<CircularList<Vertex>>();
             var faces = new List<FaceQueue>();
             var edges = new List<Edge>();
 
-            InitSlav(polygon, sLav, edges, faces);
+            InitSlav(gpoly.Outer, sLav, edges, faces);
 
-            if (holes != null)
+            foreach (var inner in gpoly.Holes)
             {
-                foreach (var inner in holes)
-                    InitSlav(inner, sLav, edges, faces);
+                InitSlav(inner, sLav, edges, faces);
             }
 
             InitEvents(sLav, queue, edges);
@@ -81,12 +101,12 @@ namespace Sutro.StraightSkeleton
             return AddFacesToOutput(faces);
         }
 
-        internal static bool EdgeBehindBisector(LineParametric2d bisector, LineLinear2d edge)
+        internal static bool EdgeBehindBisector(Line2d bisector, LineLinear2d edge)
         {
             // Simple intersection test between the bisector starting at V and the
             // whole line containing the currently tested line segment ei rejects
             // the line segments laying "behind" the vertex V
-            return LineParametric2d.Collide(bisector, edge, SplitEpsilon) == Vector2d.Empty;
+            return bisector.Collide(edge, SplitEpsilon) == Vector2d.MinValue;
         }
 
         /// <summary>
@@ -99,10 +119,10 @@ namespace Sutro.StraightSkeleton
         /// <returns>previous opposite edge if it is vertex split event.</returns>
         protected static Edge VertexOpositeEdge(Vector2d point, Edge edge)
         {
-            if (PrimitiveUtils.IsPointOnRay(point, edge.BisectorNext, SplitEpsilon))
+            if (RayExtensions.IsPointOnRay(point, edge.BisectorNext, SplitEpsilon))
                 return edge;
 
-            if (PrimitiveUtils.IsPointOnRay(point, edge.BisectorPrevious, SplitEpsilon))
+            if (RayExtensions.IsPointOnRay(point, edge.BisectorPrevious, SplitEpsilon))
                 return edge.Previous as Edge;
             return null;
         }
@@ -150,11 +170,11 @@ namespace Sutro.StraightSkeleton
             {
                 if (face.Size > 0)
                 {
-                    var faceList = new List<Vector2d>();
+                    var faceList = new Polygon2d();
                     foreach (var fn in face.Iterate())
                     {
                         var point = fn.Vertex.Point;
-                        faceList.Add(point);
+                        faceList.AppendVertex(point);
                         if (!distances.ContainsKey(point))
                             distances.Add(point, fn.Vertex.Distance);
                     }
@@ -258,13 +278,13 @@ namespace Sutro.StraightSkeleton
             return count;
         }
 
-        private static LineParametric2d CalcBisector(Vector2d p, Edge e1, Edge e2)
+        private static Line2d CalcBisector(Vector2d p, Edge e1, Edge e2)
         {
             var norm1 = e1.Norm;
             var norm2 = e2.Norm;
 
             var bisector = CalcVectorBisector(norm1, norm2);
-            return new LineParametric2d(p, bisector);
+            return new Line2d(p, bisector);
         }
 
         private static SplitCandidate CalcCandidatePointForSplit(Vertex vertex, Edge edge)
@@ -279,19 +299,19 @@ namespace Sutro.StraightSkeleton
 
             // Check should be performed to exclude the case when one of the
             // line segments starting at V is parallel to ei.
-            if (edgesCollide == Vector2d.Empty)
+            if (edgesCollide == Vector2d.MinValue)
             {
                 throw new InvalidOperationException("Ups this should not happen");
             }
 
-            var edgesBisectorLine = new LineParametric2d(edgesCollide, edgesBisector).CreateLinearForm();
+            var edgesBisectorLine = new Line2d(edgesCollide, edgesBisector).CreateLinearForm();
 
             // Compute the coordinates of the candidate point Bi as the intersection
             // between the bisector at V and the axis of the angle between one of
             // the edges starting at V and the tested line segment ei
-            var candidatePoint = LineParametric2d.Collide(vertex.Bisector, edgesBisectorLine, SplitEpsilon);
+            var candidatePoint = vertex.Bisector.Collide(edgesBisectorLine, SplitEpsilon);
 
-            if (candidatePoint == Vector2d.Empty)
+            if (candidatePoint == Vector2d.MinValue)
                 return null;
 
             if (edge.BisectorPrevious.IsOnRightSite(candidatePoint, SplitEpsilon)
@@ -304,7 +324,7 @@ namespace Sutro.StraightSkeleton
                 if (edge.BisectorNext.IsOnRightSite(candidatePoint, SplitEpsilon))
                     return new SplitCandidate(candidatePoint, distance, null, edge.Begin);
 
-                return new SplitCandidate(candidatePoint, distance, edge, Vector2d.Empty);
+                return new SplitCandidate(candidatePoint, distance, edge, Vector2d.MinValue);
             }
             return null;
         }
@@ -314,8 +334,8 @@ namespace Sutro.StraightSkeleton
             var edge = currentEdge.End - currentEdge.Begin;
             var vector = intersect - currentEdge.Begin;
 
-            var pointOnVector = PrimitiveUtils.OrthogonalProjection(edge, vector);
-            return vector.DistanceTo(pointOnVector);
+            var pointOnVector = Vector2dExtensions.OrthogonalProjection(edge, vector);
+            return vector.Distance(pointOnVector);
         }
 
         private static List<SplitCandidate> CalcOppositeEdges(Vertex vertex, List<Edge> edges)
@@ -339,7 +359,7 @@ namespace Sutro.StraightSkeleton
 
         private static Vector2d CalcVectorBisector(Vector2d norm1, Vector2d norm2)
         {
-            return PrimitiveUtils.BisectorNormalized(norm1, norm2);
+            return Vector2dExtensions.BisectorNormalized(norm1, norm2);
         }
 
         private static Vertex ChooseOppositeEdgeLav(List<Vertex> edgeLavs, Edge oppositeEdge, Vector2d center)
@@ -384,7 +404,10 @@ namespace Sutro.StraightSkeleton
                     points.Add(next.Point);
                     next = next.Next as Vertex;
                 }
-                if (PrimitiveUtils.IsPointInsidePolygon(center, points))
+
+                var poly = new Polygon2d(points);
+
+                if (poly.Contains(center))
                     return end;
             }
             throw new InvalidOperationException("Could not find lav for opposite edge, it could be correct " +
@@ -432,15 +455,15 @@ namespace Sutro.StraightSkeleton
             var point1 = ComputeIntersectionBisectors(vertex, nextVertex);
             var point2 = ComputeIntersectionBisectors(previousVertex, vertex);
 
-            if (point1 == Vector2d.Empty && point2 == Vector2d.Empty)
+            if (point1 == Vector2d.MinValue && point2 == Vector2d.MinValue)
                 return -1;
 
             var distance1 = double.MaxValue;
             var distance2 = double.MaxValue;
 
-            if (point1 != Vector2d.Empty)
+            if (point1 != Vector2d.MinValue)
                 distance1 = point.DistanceSquared(point1);
-            if (point2 != Vector2d.Empty)
+            if (point2 != Vector2d.MinValue)
                 distance2 = point.DistanceSquared(point2);
 
             if (Math.Abs(distance1 - SplitEpsilon) < distance2)
@@ -455,7 +478,7 @@ namespace Sutro.StraightSkeleton
             PriorityQueue<SkeletonEvent> queue)
         {
             var point = ComputeIntersectionBisectors(previousVertex, nextVertex);
-            if (point != Vector2d.Empty)
+            if (point != Vector2d.MinValue)
                 queue.Add(CreateEdgeEvent(point, previousVertex, nextVertex));
         }
 
@@ -470,12 +493,12 @@ namespace Sutro.StraightSkeleton
             var bisectorPrevious = vertexPrevious.Bisector;
             var bisectorNext = vertexNext.Bisector;
 
-            var intersectRays2d = PrimitiveUtils.IntersectRays2D(bisectorPrevious, bisectorNext);
+            var intersectRays2d = RayExtensions.IntersectRays2D(bisectorPrevious, bisectorNext);
             var intersect = intersectRays2d.Intersect;
 
             // skip the same points
             if (vertexPrevious.Point == intersect || vertexNext.Point == intersect)
-                return Vector2d.Empty;
+                return Vector2d.MinValue;
 
             return intersect;
         }
@@ -507,7 +530,7 @@ namespace Sutro.StraightSkeleton
                 }
 
                 // check if it is vertex split event
-                if (oppositeEdge.OppositePoint != Vector2d.Empty)
+                if (oppositeEdge.OppositePoint != Vector2d.MinValue)
                 {
                     // some of vertex event can share the same opposite point
                     queue.Add(new VertexSplitEvent(point, oppositeEdge.Distance, vertex));
@@ -517,7 +540,7 @@ namespace Sutro.StraightSkeleton
             }
         }
 
-        private static void CorrectBisectorDirection(LineParametric2d bisector, Vertex beginNextVertex,
+        private static void CorrectBisectorDirection(Line2d bisector, Vertex beginNextVertex,
             Vertex endPreviousVertex, Edge beginEdge, Edge endEdge)
         {
             // New bisector for vertex is created using connected edges. For
@@ -533,13 +556,13 @@ namespace Sutro.StraightSkeleton
             // Check if edges are parallel and in opposite direction to each other.
             if (beginEdge.Norm.Dot(endEdge.Norm) < -0.97)
             {
-                var n1 = PrimitiveUtils.FromTo(endPreviousVertex.Point, bisector.A).Normalized();
-                var n2 = PrimitiveUtils.FromTo(bisector.A, beginNextVertex.Point).Normalized();
+                var n1 = Vector2dExtensions.FromTo(endPreviousVertex.Point, bisector.Origin).Normalized;
+                var n2 = Vector2dExtensions.FromTo(bisector.Origin, beginNextVertex.Point).Normalized;
                 var bisectorPrediction = CalcVectorBisector(n1, n2);
 
                 // Bisector is calculated in opposite direction to edges and center.
-                if (bisector.U.Dot(bisectorPrediction) < 0)
-                    bisector.U.Negate();
+                if (bisector.Direction.Dot(bisectorPrediction) < 0)
+                    bisector.Direction *= -1;
             }
         }
 
@@ -844,7 +867,7 @@ loop:
                         j--;
                     }
                     // is near
-                    else if (eventCenter.DistanceTo(test.V) < SplitEpsilon)
+                    else if (eventCenter.Distance(test.V) < SplitEpsilon)
                     {
                         // group all event when the result point are near each other
                         var item = levelEvents[j];
@@ -881,23 +904,12 @@ loop:
             }
         }
 
-        private static List<Vector2d> InitPolygon(List<Vector2d> polygon)
-        {
-            if (polygon == null)
-                throw new ArgumentException("polygon can't be null");
-
-            if (polygon[0].Equals(polygon[polygon.Count - 1]))
-                throw new ArgumentException("polygon can't start and end with the same point");
-
-            return MakeCounterClockwise(polygon);
-        }
-
-        private static void InitSlav(List<Vector2d> polygon, HashSet<CircularList<Vertex>> sLav,
+        private static void InitSlav(Polygon2d polygon, HashSet<CircularList<Vertex>> sLav,
             List<Edge> edges, List<FaceQueue> faces)
         {
             var edgesList = new CircularList<Edge>();
 
-            var size = polygon.Count;
+            var size = polygon.VertexCount;
             for (var i = 0; i < size; i++)
             {
                 var j = (i + 1) % size;
@@ -997,30 +1009,6 @@ loop:
                     level.Add(nextLevelEvent);
             }
             return level;
-        }
-
-        private static List<List<Vector2d>> MakeClockwise(List<List<Vector2d>> holes)
-        {
-            if (holes == null)
-                return null;
-
-            var ret = new List<List<Vector2d>>(holes.Count);
-            foreach (var hole in holes)
-            {
-                if (PrimitiveUtils.IsClockwisePolygon(hole))
-                    ret.Add(hole);
-                else
-                {
-                    hole.Reverse();
-                    ret.Add(hole);
-                }
-            }
-            return ret;
-        }
-
-        private static List<Vector2d> MakeCounterClockwise(List<Vector2d> polygon)
-        {
-            return PrimitiveUtils.MakeCounterClockwise(polygon);
         }
 
         private static void MultiEdgeEvent(MultiEdgeEvent @event,
@@ -1130,7 +1118,7 @@ loop:
 
             // lav will be removed so it is final vertex.
             AddMultiBackFaces(edgeList, new Vertex(center, @event.Distance,
-                LineParametric2d.Empty, null, null)
+                new Line2d(Vector2d.MinValue, Vector2d.MinValue), null, null)
             { IsProcessed = true });
         }
 
@@ -1171,6 +1159,24 @@ loop:
             }
         }
 
+        private static void ValidateGeneralPolygon(GeneralPolygon2d gpolygon)
+        {
+            ValidatePolygon(gpolygon.Outer);
+            foreach (var hole in gpolygon.Holes)
+            {
+                ValidatePolygon(hole);
+            }
+        }
+
+        private static void ValidatePolygon(Polygon2d polygon)
+        {
+            if (polygon == null)
+                throw new ArgumentException("polygon can't be null");
+
+            if (polygon[0].Equals(polygon[polygon.VertexCount - 1]))
+                throw new ArgumentException("polygon can't start and end with the same point");
+        }
+
         #region Nested classes
 
         private class ChainComparer : IComparer<IChain>
@@ -1195,8 +1201,8 @@ loop:
 
             private static double Angle(Vector2d p0, Vector2d p1)
             {
-                var dx = p1.X - p0.X;
-                var dy = p1.Y - p0.Y;
+                var dx = p1.x - p0.x;
+                var dy = p1.y - p0.y;
                 return Math.Atan2(dy, dx);
             }
         }

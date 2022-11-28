@@ -5,7 +5,7 @@ VisualStudioVersion = 17.2.32602.215
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sutro.StraightSkeleton", "Sutro.StraightSkeleton\Sutro.StraightSkeleton.csproj", "{1898DD84-A033-42E7-A089-0996B066C6D2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StraightSkeletonNet.Tests", "Sutro.StraightSkeleton.Tests\StraightSkeletonNet.Tests.csproj", "{3898AF36-98E4-4EBF-BB2C-06EC91F1EC8E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sutro.StraightSkeleton.Tests", "Sutro.StraightSkeleton.Tests\Sutro.StraightSkeleton.Tests.csproj", "{3898AF36-98E4-4EBF-BB2C-06EC91F1EC8E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

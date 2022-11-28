@@ -1,4 +1,5 @@
-﻿using Sutro.StraightSkeleton.Primitives;
+﻿using g3;
+using Sutro.StraightSkeleton.Primitives;
 
 namespace Sutro.StraightSkeleton.Circular
 {
@@ -14,7 +15,7 @@ namespace Sutro.StraightSkeleton.Circular
             End = end;
 
             LineLinear2d = new LineLinear2d(begin, end);
-            Norm = (end - begin).Normalized();
+            Norm = (end - begin).Normalized;
         }
 
         public override string ToString()
@@ -23,7 +24,7 @@ namespace Sutro.StraightSkeleton.Circular
         }
 
         internal readonly LineLinear2d LineLinear2d;
-        internal LineParametric2d BisectorNext;
-        internal LineParametric2d BisectorPrevious;
+        internal Line2d BisectorNext;
+        internal Line2d BisectorPrevious;
     }
 }

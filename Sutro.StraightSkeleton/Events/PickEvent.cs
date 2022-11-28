@@ -1,5 +1,5 @@
-﻿using Sutro.StraightSkeleton.Events.Chains;
-using Sutro.StraightSkeleton.Primitives;
+﻿using g3;
+using Sutro.StraightSkeleton.Events.Chains;
 
 namespace Sutro.StraightSkeleton.Events
 {
