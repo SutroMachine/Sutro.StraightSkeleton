@@ -576,7 +576,7 @@ namespace Sutro.StraightSkeleton
         /// <returns>chains of events</returns>
         private static List<IChain> CreateChains(List<SkeletonEvent> cluster)
         {
-            var edgeCluster = new List<EdgeEvent>();
+            var edgeCluster = new HashSet<EdgeEvent>();
             var splitCluster = new List<SplitEvent>();
             var vertexEventsParents = new HashSet<Vertex>();
 
@@ -657,41 +657,51 @@ splitEventLoop:
             return chains;
         }
 
-        private static List<EdgeEvent> CreateEdgeChain(List<EdgeEvent> edgeCluster)
+        private static List<EdgeEvent> CreateEdgeChain(HashSet<EdgeEvent> unprocessedEdgeEvents)
         {
-            var edgeList = new List<EdgeEvent>();
+            var seed = unprocessedEdgeEvents.First();
+            unprocessedEdgeEvents.Remove(seed);
 
-            edgeList.Add(edgeCluster[0]);
-            edgeCluster.RemoveAt(0);
+            // Find all successors of edge event
+            var successorEdges = new List<EdgeEvent>();
+            var endVertex = seed.NextVertex;
 
-// find all successors of edge event
-// find all predecessors of edge event
-loop:
-            for (; ; )
+            while (unprocessedEdgeEvents.Count > 0)
             {
-                var beginVertex = edgeList[0].PreviousVertex;
-                var endVertex = edgeList[edgeList.Count - 1].NextVertex;
-
-                for (var i = 0; i < edgeCluster.Count; i++)
+                var nextEdge = unprocessedEdgeEvents.FirstOrDefault(e => e.PreviousVertex == endVertex);
+                if (nextEdge == null)
                 {
-                    var edge = edgeCluster[i];
-                    if (edge.PreviousVertex == endVertex)
-                    {
-                        // edge should be added as last in chain
-                        edgeCluster.RemoveAt(i);
-                        edgeList.Add(edge);
-                        goto loop;
-                    }
-                    if (edge.NextVertex == beginVertex)
-                    {
-                        // edge should be added as first in chain
-                        edgeCluster.RemoveAt(i);
-                        edgeList.Insert(0, edge);
-                        goto loop;
-                    }
+                    break;
                 }
-                break;
+                unprocessedEdgeEvents.Remove(nextEdge);
+                successorEdges.Add(nextEdge);
+                endVertex = nextEdge.NextVertex;
             }
+
+            // Find all predecessors of edge event
+            var predecessorEdges = new List<EdgeEvent>();
+            var beginVertex = seed.PreviousVertex;
+
+            while (unprocessedEdgeEvents.Count > 0)
+            {
+                var previousEdge = unprocessedEdgeEvents.FirstOrDefault(e => e.NextVertex == beginVertex);
+                if (previousEdge == null)
+                {
+                    break;
+                }
+                unprocessedEdgeEvents.Remove(previousEdge);
+                predecessorEdges.Add(previousEdge);
+                beginVertex = previousEdge.PreviousVertex;
+            }
+
+            // Combine into a single list
+            var edgeList = new List<EdgeEvent>(predecessorEdges.Count + 1 + successorEdges.Count);
+            for (int i = predecessorEdges.Count - 1; i >= 0; i--)
+            {
+                edgeList.Add(predecessorEdges[i]);
+            }
+            edgeList.Add(seed);
+            edgeList.AddRange(successorEdges);
 
             return edgeList;
         }
@@ -958,12 +968,12 @@ loop:
 
         private static bool IsEventInGroup(HashSet<Vertex> parentGroup, SkeletonEvent @event)
         {
-            if (@event is SplitEvent)
-                return parentGroup.Contains(((SplitEvent)@event).Parent);
-            if (@event is EdgeEvent)
-                return parentGroup.Contains(((EdgeEvent)@event).PreviousVertex)
-                       || parentGroup.Contains(((EdgeEvent)@event).NextVertex);
-            return false;
+            return @event switch
+            {
+                SplitEvent splitEvent => parentGroup.Contains(splitEvent.Parent),
+                EdgeEvent edgeEvent => parentGroup.Contains(edgeEvent.PreviousVertex) || parentGroup.Contains(edgeEvent.NextVertex),
+                _ => false,
+            };
         }
 
         private static bool IsInEdgeChain(SplitEvent split, EdgeChain chain)
@@ -1179,7 +1189,7 @@ loop:
 
         #region Nested classes
 
-        private class ChainComparer : IComparer<IChain>
+        private sealed class ChainComparer : IComparer<IChain>
         {
             public ChainComparer(Vector2d center)
             {
@@ -1207,7 +1217,7 @@ loop:
             }
         }
 
-        private class SkeletonEventDistanseComparer : IComparer<SkeletonEvent>
+        private sealed class SkeletonEventDistanseComparer : IComparer<SkeletonEvent>
         {
             public int Compare(SkeletonEvent left, SkeletonEvent right)
             {
@@ -1215,7 +1225,7 @@ loop:
             }
         };
 
-        private class SplitCandidate
+        private sealed class SplitCandidate
         {
             public readonly double Distance;
             public readonly Edge OppositeEdge;
@@ -1231,7 +1241,7 @@ loop:
             }
         }
 
-        private class SplitCandidateComparer : IComparer<SplitCandidate>
+        private sealed class SplitCandidateComparer : IComparer<SplitCandidate>
         {
             public int Compare(SplitCandidate left, SplitCandidate right)
             {
