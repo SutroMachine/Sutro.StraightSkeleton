@@ -129,11 +129,12 @@ namespace Sutro.StraightSkeleton
         /// <returns>previous opposite edge if it is vertex split event.</returns>
         protected static Edge VertexOpositeEdge(Vector2d point, Edge edge)
         {
-            if (RayExtensions.IsPointOnRay(point, edge.BisectorNext, SplitEpsilon))
+            if (edge.BisectorNext.WhichSide(point, SplitEpsilon) == 0)
                 return edge;
 
-            if (RayExtensions.IsPointOnRay(point, edge.BisectorPrevious, SplitEpsilon))
+            if (edge.BisectorPrevious.WhichSide(point, SplitEpsilon) == 0)
                 return edge.Previous as Edge;
+
             return null;
         }
 
@@ -346,7 +347,7 @@ namespace Sutro.StraightSkeleton
             var edge = currentEdge.End - currentEdge.Begin;
             var vector = intersect - currentEdge.Begin;
 
-            var pointOnVector = Vector2dExtensions.OrthogonalProjection(edge, vector);
+            var pointOnVector = VectorExtensions.OrthogonalProjection(edge, vector);
             return vector.Distance(pointOnVector);
         }
 
@@ -371,7 +372,7 @@ namespace Sutro.StraightSkeleton
 
         private static Vector2d CalcVectorBisector(Vector2d norm1, Vector2d norm2)
         {
-            return Vector2dExtensions.BisectorNormalized(norm1, norm2);
+            return VectorExtensions.BisectorNormalized(norm1, norm2);
         }
 
         private static Vertex ChooseOppositeEdgeLav(List<Vertex> edgeLavs, Edge oppositeEdge, Vector2d center)
@@ -502,17 +503,19 @@ namespace Sutro.StraightSkeleton
 
         private static Vector2d ComputeIntersectionBisectors(Vertex vertexPrevious, Vertex vertexNext)
         {
-            var bisectorPrevious = vertexPrevious.Bisector;
-            var bisectorNext = vertexNext.Bisector;
+            var intersection = new IntrLine2Line2(vertexPrevious.Bisector, vertexNext.Bisector);
+            intersection.Compute();
 
-            var intersectRays2d = RayExtensions.IntersectRays2D(bisectorPrevious, bisectorNext);
-            var intersect = intersectRays2d.Intersect;
+            if (intersection.Result == IntersectionResult.Intersects &&
+                intersection.Segment1Parameter > 0 &&
+                intersection.Segment2Parameter > 0 &&
+                intersection.Point != vertexPrevious.Point &&
+                intersection.Point != vertexNext.Point)
+            {
+                return intersection.Point;
+            }
 
-            // skip the same points
-            if (vertexPrevious.Point == intersect || vertexNext.Point == intersect)
-                return Vector2d.MinValue;
-
-            return intersect;
+            return Vector2d.MinValue;
         }
 
         private static void ComputeSplitEvents(Vertex vertex, List<Edge> edges, PriorityQueue<SkeletonEvent> queue,
@@ -568,8 +571,8 @@ namespace Sutro.StraightSkeleton
             // Check if edges are parallel and in opposite direction to each other.
             if (beginEdge.Norm.Dot(endEdge.Norm) < -0.97)
             {
-                var n1 = Vector2dExtensions.FromTo(endPreviousVertex.Point, bisector.Origin).Normalized;
-                var n2 = Vector2dExtensions.FromTo(bisector.Origin, beginNextVertex.Point).Normalized;
+                var n1 = VectorExtensions.FromTo(endPreviousVertex.Point, bisector.Origin).Normalized;
+                var n2 = VectorExtensions.FromTo(bisector.Origin, beginNextVertex.Point).Normalized;
                 var bisectorPrediction = CalcVectorBisector(n1, n2);
 
                 // Bisector is calculated in opposite direction to edges and center.
