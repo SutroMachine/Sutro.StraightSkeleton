@@ -2,7 +2,7 @@
 
 namespace Sutro.StraightSkeleton.Path
 {
-    internal class FaceQueueUtil
+    internal static class FaceQueueUtil
     {
         /// <summary>
         ///     Connect two nodes queue. Id both nodes comes from the same queue, queue
@@ -37,20 +37,15 @@ namespace Sutro.StraightSkeleton.Path
             if (!firstFace.IsQueueUnconnected)
             {
                 var qLeft = secondFace.FaceQueue;
-                MoveNodes(firstFace, secondFace);
+                firstFace.AddQueue(secondFace);
                 qLeft.Close();
             }
             else
             {
                 var qRight = firstFace.FaceQueue;
-                MoveNodes(secondFace, firstFace);
+                secondFace.AddQueue(firstFace);
                 qRight.Close();
             }
-        }
-
-        private static void MoveNodes(FaceNode firstFace, FaceNode secondFace)
-        {
-            firstFace.AddQueue(secondFace);
         }
     }
 }

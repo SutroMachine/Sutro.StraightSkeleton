@@ -7,6 +7,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sutro.StraightSkeleton", "S
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sutro.StraightSkeleton.Tests", "Sutro.StraightSkeleton.Tests\Sutro.StraightSkeleton.Tests.csproj", "{3898AF36-98E4-4EBF-BB2C-06EC91F1EC8E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sutro.StraightSkeleton.Benchmark", "Sutro.StraightSkeleton.Benchmark\Sutro.StraightSkeleton.Benchmark.csproj", "{9E8430CC-E832-427A-8567-25147364F297}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{3898AF36-98E4-4EBF-BB2C-06EC91F1EC8E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3898AF36-98E4-4EBF-BB2C-06EC91F1EC8E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3898AF36-98E4-4EBF-BB2C-06EC91F1EC8E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9E8430CC-E832-427A-8567-25147364F297}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9E8430CC-E832-427A-8567-25147364F297}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9E8430CC-E832-427A-8567-25147364F297}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9E8430CC-E832-427A-8567-25147364F297}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

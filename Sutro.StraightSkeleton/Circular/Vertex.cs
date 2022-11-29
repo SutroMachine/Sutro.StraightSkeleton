@@ -21,7 +21,7 @@ namespace Sutro.StraightSkeleton.Circular
         {
             Point = point;
             Distance = Math.Round(distance, RoundDigitCount);
-            Bisector = bisector;
+            Bisector = new Line2d(bisector.Origin, bisector.Direction.Normalized);
             PreviousEdge = previousEdge;
             NextEdge = nextEdge;
 

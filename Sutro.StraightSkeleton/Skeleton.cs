@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using g3;
 
 namespace Sutro.StraightSkeleton
@@ -7,16 +8,16 @@ namespace Sutro.StraightSkeleton
     public class Skeleton
     {
         /// <summary> Distance points from edges. </summary>
-        public readonly Dictionary<Vector2d, double> Distances;
+        public ReadOnlyDictionary<Vector2d, double> Distances { get; }
 
         /// <summary> Result of skeleton algorithm for edge. </summary>
-        public readonly List<EdgeResult> Edges;
+        public ReadOnlyCollection<EdgeResult> Edges { get; }
 
         /// <summary> Creates instance of <see cref="Skeleton"/>. </summary>
-        public Skeleton(List<EdgeResult> edges, Dictionary<Vector2d, double> distances)
+        public Skeleton(IList<EdgeResult> edges, Dictionary<Vector2d, double> distances)
         {
-            Edges = edges;
-            Distances = distances;
+            Edges = new ReadOnlyCollection<EdgeResult>(edges);
+            Distances = new ReadOnlyDictionary<Vector2d, double>(distances);
         }
     }
 }

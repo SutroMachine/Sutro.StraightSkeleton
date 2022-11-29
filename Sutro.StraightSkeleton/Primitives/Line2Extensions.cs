@@ -2,7 +2,7 @@
 
 namespace Sutro.StraightSkeleton.Primitives
 {
-    internal static class Line2dExtensions
+    internal static class Line2Extensions
     {
         public static Vector2d Collide(this Line2d ray, LineLinear2d line, double epsilon)
         {
@@ -29,13 +29,13 @@ namespace Sutro.StraightSkeleton.Primitives
         public static bool IsOnLeftSite(this Line2d line, Vector2d point, double epsilon)
         {
             var direction = point - line.Origin;
-            return Vector2dExtensions.OrthogonalRight(line.Direction).Dot(direction) < epsilon;
+            return VectorExtensions.OrthogonalRight(line.Direction).Dot(direction) < epsilon;
         }
 
         public static bool IsOnRightSite(this Line2d line, Vector2d point, double epsilon)
         {
             var direction = point - line.Origin;
-            return Vector2dExtensions.OrthogonalRight(line.Direction).Dot(direction) > -epsilon;
+            return VectorExtensions.OrthogonalRight(line.Direction).Dot(direction) > -epsilon;
         }
     }
 }

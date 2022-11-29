@@ -71,26 +71,36 @@ namespace Sutro.StraightSkeleton
                 // start processing skeleton level
                 count = AssertMaxNumberOfInteraction(count);
                 var levelHeight = queue.Peek().Distance;
-                foreach (var @event in LoadAndGroupLevelEvents(queue))
+                foreach (var levelEvent in LoadAndGroupLevelEvents(queue))
                 {
                     // event is outdated some of parent vertex was processed before
-                    if (@event.IsObsolete)
+                    if (levelEvent.IsObsolete)
                         continue;
 
-                    if (@event is EdgeEvent)
-                        throw new InvalidOperationException("All edge@events should be converted to " +
-                                                            "MultiEdgeEvents for given level");
-                    if (@event is SplitEvent)
-                        throw new InvalidOperationException("All split events should be converted to" +
-                                                            " MultiSplitEvents for given level");
-                    if (@event is MultiSplitEvent)
-                        MultiSplitEvent((MultiSplitEvent)@event, sLav, queue, edges);
-                    else if (@event is PickEvent)
-                        PickEvent((PickEvent)@event);
-                    else if (@event is MultiEdgeEvent)
-                        MultiEdgeEvent((MultiEdgeEvent)@event, queue, edges);
-                    else
-                        throw new InvalidOperationException("Unknown event type: " + @event.GetType());
+                    switch (levelEvent)
+                    {
+                        case EdgeEvent edgeEvent:
+                            throw new InvalidOperationException("All edge@events should be converted to " +
+                                                                "MultiEdgeEvents for given level");
+                        case SplitEvent splitEvent:
+                            throw new InvalidOperationException("All split events should be converted to " +
+                                                                "MultiSplitEvents for given level");
+
+                        case MultiSplitEvent multiSplitEvent:
+                            MultiSplitEvent(multiSplitEvent, sLav, queue, edges);
+                            break;
+
+                        case PickEvent pickEvent:
+                            PickEvent(pickEvent);
+                            break;
+
+                        case MultiEdgeEvent multiEdgeEvent:
+                            MultiEdgeEvent(multiEdgeEvent, queue, edges);
+                            break;
+
+                        default:
+                            throw new InvalidOperationException("Unknown event type: " + levelEvent.GetType());
+                    }
                 }
 
                 ProcessTwoNodeLavs(sLav);
@@ -119,25 +129,28 @@ namespace Sutro.StraightSkeleton
         /// <returns>previous opposite edge if it is vertex split event.</returns>
         protected static Edge VertexOpositeEdge(Vector2d point, Edge edge)
         {
-            if (RayExtensions.IsPointOnRay(point, edge.BisectorNext, SplitEpsilon))
+            if (edge.BisectorNext.WhichSide(point, SplitEpsilon) == 0)
                 return edge;
 
-            if (RayExtensions.IsPointOnRay(point, edge.BisectorPrevious, SplitEpsilon))
+            if (edge.BisectorPrevious.WhichSide(point, SplitEpsilon) == 0)
                 return edge.Previous as Edge;
+
             return null;
         }
 
         // Error epsilon.
         private const double SplitEpsilon = 1E-10;
 
-        private static void AddEventToGroup(HashSet<Vertex> parentGroup, SkeletonEvent @event)
+        private static void AddEventToGroup(HashSet<Vertex> parentGroup, SkeletonEvent skeletonEvent)
         {
-            if (@event is SplitEvent)
-                parentGroup.Add(((SplitEvent)@event).Parent);
-            else if (@event is EdgeEvent)
+            if (skeletonEvent is SplitEvent splitEvent)
             {
-                parentGroup.Add(((EdgeEvent)@event).PreviousVertex);
-                parentGroup.Add(((EdgeEvent)@event).NextVertex);
+                parentGroup.Add(splitEvent.Parent);
+            }
+            else if (skeletonEvent is EdgeEvent edgeEvent)
+            {
+                parentGroup.Add(edgeEvent.PreviousVertex);
+                parentGroup.Add(edgeEvent.NextVertex);
             }
         }
 
@@ -171,12 +184,11 @@ namespace Sutro.StraightSkeleton
                 if (face.Size > 0)
                 {
                     var faceList = new Polygon2d();
-                    foreach (var fn in face.Iterate())
+                    foreach (var vertex in face.Iterate().Select(fn => fn.Vertex))
                     {
-                        var point = fn.Vertex.Point;
-                        faceList.AppendVertex(point);
-                        if (!distances.ContainsKey(point))
-                            distances.Add(point, fn.Vertex.Distance);
+                        faceList.AppendVertex(vertex.Point);
+                        if (!distances.ContainsKey(vertex.Point))
+                            distances.Add(vertex.Point, vertex.Distance);
                     }
                     edgeOutputs.Add(new EdgeResult(face.Edge, faceList));
                 }
@@ -334,7 +346,7 @@ namespace Sutro.StraightSkeleton
             var edge = currentEdge.End - currentEdge.Begin;
             var vector = intersect - currentEdge.Begin;
 
-            var pointOnVector = Vector2dExtensions.OrthogonalProjection(edge, vector);
+            var pointOnVector = VectorExtensions.OrthogonalProjection(edge, vector);
             return vector.Distance(pointOnVector);
         }
 
@@ -359,7 +371,7 @@ namespace Sutro.StraightSkeleton
 
         private static Vector2d CalcVectorBisector(Vector2d norm1, Vector2d norm2)
         {
-            return Vector2dExtensions.BisectorNormalized(norm1, norm2);
+            return VectorExtensions.BisectorNormalized(norm1, norm2);
         }
 
         private static Vertex ChooseOppositeEdgeLav(List<Vertex> edgeLavs, Edge oppositeEdge, Vector2d center)
@@ -490,17 +502,19 @@ namespace Sutro.StraightSkeleton
 
         private static Vector2d ComputeIntersectionBisectors(Vertex vertexPrevious, Vertex vertexNext)
         {
-            var bisectorPrevious = vertexPrevious.Bisector;
-            var bisectorNext = vertexNext.Bisector;
+            var intersection = new IntrLine2Line2(vertexPrevious.Bisector, vertexNext.Bisector);
+            intersection.Compute();
 
-            var intersectRays2d = RayExtensions.IntersectRays2D(bisectorPrevious, bisectorNext);
-            var intersect = intersectRays2d.Intersect;
+            if (intersection.Result == IntersectionResult.Intersects &&
+                intersection.Segment1Parameter > 0 &&
+                intersection.Segment2Parameter > 0 &&
+                intersection.Point != vertexPrevious.Point &&
+                intersection.Point != vertexNext.Point)
+            {
+                return intersection.Point;
+            }
 
-            // skip the same points
-            if (vertexPrevious.Point == intersect || vertexNext.Point == intersect)
-                return Vector2d.MinValue;
-
-            return intersect;
+            return Vector2d.MinValue;
         }
 
         private static void ComputeSplitEvents(Vertex vertex, List<Edge> edges, PriorityQueue<SkeletonEvent> queue,
@@ -514,19 +528,17 @@ namespace Sutro.StraightSkeleton
             {
                 var point = oppositeEdge.Point;
 
-                if (Math.Abs(distanceSquared - (-1)) > SplitEpsilon)
+                if (Math.Abs(distanceSquared - (-1)) > SplitEpsilon &&
+                    source.DistanceSquared(point) > distanceSquared + SplitEpsilon)
                 {
-                    if (source.DistanceSquared(point) > distanceSquared + SplitEpsilon)
-                    {
-                        // Current split event distance from source of event is
-                        // greater then for edge event. Split event can be reject.
-                        // Distance from source is not the same as distance for
-                        // edge. Two events can have the same distance to edge but
-                        // they will be in different distance form its source.
-                        // Unnecessary events should be reject otherwise they cause
-                        // problems for degenerate cases.
-                        continue;
-                    }
+                    // Current split event distance from source of event is
+                    // greater then for edge event. Split event can be reject.
+                    // Distance from source is not the same as distance for
+                    // edge. Two events can have the same distance to edge but
+                    // they will be in different distance form its source.
+                    // Unnecessary events should be reject otherwise they cause
+                    // problems for degenerate cases.
+                    continue;
                 }
 
                 // check if it is vertex split event
@@ -556,8 +568,8 @@ namespace Sutro.StraightSkeleton
             // Check if edges are parallel and in opposite direction to each other.
             if (beginEdge.Norm.Dot(endEdge.Norm) < -0.97)
             {
-                var n1 = Vector2dExtensions.FromTo(endPreviousVertex.Point, bisector.Origin).Normalized;
-                var n2 = Vector2dExtensions.FromTo(bisector.Origin, beginNextVertex.Point).Normalized;
+                var n1 = VectorExtensions.FromTo(endPreviousVertex.Point, bisector.Origin).Normalized;
+                var n2 = VectorExtensions.FromTo(bisector.Origin, beginNextVertex.Point).Normalized;
                 var bisectorPrediction = CalcVectorBisector(n1, n2);
 
                 // Bisector is calculated in opposite direction to edges and center.
@@ -576,47 +588,47 @@ namespace Sutro.StraightSkeleton
         /// <returns>chains of events</returns>
         private static List<IChain> CreateChains(List<SkeletonEvent> cluster)
         {
-            var edgeCluster = new List<EdgeEvent>();
+            var edgeCluster = new HashSet<EdgeEvent>();
             var splitCluster = new List<SplitEvent>();
             var vertexEventsParents = new HashSet<Vertex>();
 
             foreach (var skeletonEvent in cluster)
             {
-                if (skeletonEvent is EdgeEvent)
-                    edgeCluster.Add((EdgeEvent)skeletonEvent);
-                else
+                switch (skeletonEvent)
                 {
-                    if (skeletonEvent is VertexSplitEvent)
-                    {
+                    case EdgeEvent edgeEvent:
+                        edgeCluster.Add(edgeEvent);
+                        break;
+
+                    case VertexSplitEvent _:
                         // It will be processed in next loop to find unique split
                         // events for one parent.
-                    }
-                    else if (skeletonEvent is SplitEvent)
-                    {
-                        var splitEvent = (SplitEvent)skeletonEvent;
+                        break;
+
+                    case SplitEvent splitEvent:
                         // If vertex and split event exist for the same parent
                         // vertex and at the same level always prefer split.
                         vertexEventsParents.Add(splitEvent.Parent);
                         splitCluster.Add(splitEvent);
-                    }
+                        break;
+
+                    default:
+                        break;
                 }
             }
 
             foreach (var skeletonEvent in cluster)
             {
-                if (skeletonEvent is VertexSplitEvent)
+                if (skeletonEvent is VertexSplitEvent vertexSplitEvent &&
+                    !vertexEventsParents.Contains(vertexSplitEvent.Parent))
                 {
-                    var vertexEvent = (VertexSplitEvent)skeletonEvent;
-                    if (!vertexEventsParents.Contains(vertexEvent.Parent))
-                    {
-                        // It can be created multiple vertex events for one parent.
-                        // Its is caused because two edges share one vertex and new
-                        //event will be added to both of them. When processing we
-                        // need always group them into one per vertex. Always prefer
-                        // split events over vertex events.
-                        vertexEventsParents.Add(vertexEvent.Parent);
-                        splitCluster.Add(vertexEvent);
-                    }
+                    // It can be created multiple vertex events for one parent.
+                    // Its is caused because two edges share one vertex and new
+                    //event will be added to both of them. When processing we
+                    // need always group them into one per vertex. Always prefer
+                    // split events over vertex events.
+                    vertexEventsParents.Add(vertexSplitEvent.Parent);
+                    splitCluster.Add(vertexSplitEvent);
                 }
             }
 
@@ -632,21 +644,19 @@ namespace Sutro.StraightSkeleton
             foreach (var edgeChain in edgeChains)
                 chains.Add(edgeChain);
 
-splitEventLoop:
             while (splitCluster.Any())
             {
                 var split = splitCluster[0];
                 splitCluster.RemoveAt(0);
 
-                foreach (var chain in edgeChains)
+                // check if chain is split type
+                if (edgeChains.Any(chain => IsInEdgeChain(split, chain)))
                 {
-                    // check if chain is split type
-                    if (IsInEdgeChain(split, chain))
-                        goto splitEventLoop;
+                    continue;
                 }
 
                 // split event is not part of any edge chain, it should be added as
-                // new single element chain;
+                // a single element chain.
                 chains.Add(new SplitChain(split));
             }
 
@@ -657,41 +667,51 @@ splitEventLoop:
             return chains;
         }
 
-        private static List<EdgeEvent> CreateEdgeChain(List<EdgeEvent> edgeCluster)
+        private static List<EdgeEvent> CreateEdgeChain(HashSet<EdgeEvent> unprocessedEdgeEvents)
         {
-            var edgeList = new List<EdgeEvent>();
+            var seed = unprocessedEdgeEvents.First();
+            unprocessedEdgeEvents.Remove(seed);
 
-            edgeList.Add(edgeCluster[0]);
-            edgeCluster.RemoveAt(0);
+            // Find all successors of edge event
+            var successorEdges = new List<EdgeEvent>();
+            var endVertex = seed.NextVertex;
 
-// find all successors of edge event
-// find all predecessors of edge event
-loop:
-            for (; ; )
+            while (unprocessedEdgeEvents.Count > 0)
             {
-                var beginVertex = edgeList[0].PreviousVertex;
-                var endVertex = edgeList[edgeList.Count - 1].NextVertex;
-
-                for (var i = 0; i < edgeCluster.Count; i++)
+                var nextEdge = unprocessedEdgeEvents.FirstOrDefault(e => e.PreviousVertex == endVertex);
+                if (nextEdge == null)
                 {
-                    var edge = edgeCluster[i];
-                    if (edge.PreviousVertex == endVertex)
-                    {
-                        // edge should be added as last in chain
-                        edgeCluster.RemoveAt(i);
-                        edgeList.Add(edge);
-                        goto loop;
-                    }
-                    if (edge.NextVertex == beginVertex)
-                    {
-                        // edge should be added as first in chain
-                        edgeCluster.RemoveAt(i);
-                        edgeList.Insert(0, edge);
-                        goto loop;
-                    }
+                    break;
                 }
-                break;
+                unprocessedEdgeEvents.Remove(nextEdge);
+                successorEdges.Add(nextEdge);
+                endVertex = nextEdge.NextVertex;
             }
+
+            // Find all predecessors of edge event
+            var predecessorEdges = new List<EdgeEvent>();
+            var beginVertex = seed.PreviousVertex;
+
+            while (unprocessedEdgeEvents.Count > 0)
+            {
+                var previousEdge = unprocessedEdgeEvents.FirstOrDefault(e => e.NextVertex == beginVertex);
+                if (previousEdge == null)
+                {
+                    break;
+                }
+                unprocessedEdgeEvents.Remove(previousEdge);
+                predecessorEdges.Add(previousEdge);
+                beginVertex = previousEdge.PreviousVertex;
+            }
+
+            // Combine into a single list
+            var edgeList = new List<EdgeEvent>(predecessorEdges.Count + 1 + successorEdges.Count);
+            for (int i = predecessorEdges.Count - 1; i >= 0; i--)
+            {
+                edgeList.Add(predecessorEdges[i]);
+            }
+            edgeList.Add(seed);
+            edgeList.AddRange(successorEdges);
 
             return edgeList;
         }
@@ -726,7 +746,7 @@ loop:
         private static Vertex CreateMultiSplitVertex(Edge nextEdge, Edge previousEdge, Vector2d center, double distance)
         {
             var bisector = CalcBisector(center, previousEdge, nextEdge);
-            // edges are mirrored for@event
+            // edges are mirrored for event
             return new Vertex(center, distance, bisector, previousEdge, nextEdge);
         }
 
@@ -734,8 +754,8 @@ loop:
             List<IChain> chains, Vector2d center)
         {
             // Add chain created from opposite edge, this chain have to be
-            // calculated during processing@event because lav could change during
-            // processing another@events on the same level
+            // calculated during processing @event because lav could change during
+            // processing another @events on the same level
             var oppositeEdges = new HashSet<Edge>();
 
             var oppositeEdgeChains = new List<IChain>();
@@ -744,9 +764,8 @@ loop:
             foreach (var chain in chains)
             {
                 // add opposite edges as chain parts
-                if (chain is SplitChain)
+                if (chain is SplitChain splitChain)
                 {
-                    var splitChain = (SplitChain)chain;
                     var oppositeEdge = splitChain.OppositeEdge;
                     if (oppositeEdge != null && !oppositeEdges.Contains(oppositeEdge))
                     {
@@ -852,7 +871,7 @@ loop:
                 {
                     var test = levelEvents[j];
 
-                    if (IsEventInGroup(parentGroup, test))
+                    if (IsEventInGroup(parentGroup, test) || eventCenter.Distance(test.V) < SplitEpsilon)
                     {
                         // Because of numerical errors split event and edge event
                         // can appear in slight different point. Epsilon can be
@@ -860,16 +879,6 @@ loop:
                         // little changes in level. If two events for the same level
                         // share the same parent, they should be merge together.
 
-                        var item = levelEvents[j];
-                        levelEvents.RemoveAt(j);
-                        cluster.Add(item);
-                        AddEventToGroup(parentGroup, test);
-                        j--;
-                    }
-                    // is near
-                    else if (eventCenter.Distance(test.V) < SplitEpsilon)
-                    {
-                        // group all event when the result point are near each other
                         var item = levelEvents[j];
                         levelEvents.RemoveAt(j);
                         cluster.Add(item);
@@ -958,12 +967,12 @@ loop:
 
         private static bool IsEventInGroup(HashSet<Vertex> parentGroup, SkeletonEvent @event)
         {
-            if (@event is SplitEvent)
-                return parentGroup.Contains(((SplitEvent)@event).Parent);
-            if (@event is EdgeEvent)
-                return parentGroup.Contains(((EdgeEvent)@event).PreviousVertex)
-                       || parentGroup.Contains(((EdgeEvent)@event).NextVertex);
-            return false;
+            return @event switch
+            {
+                SplitEvent splitEvent => parentGroup.Contains(splitEvent.Parent),
+                EdgeEvent edgeEvent => parentGroup.Contains(edgeEvent.PreviousVertex) || parentGroup.Contains(edgeEvent.NextVertex),
+                _ => false,
+            };
         }
 
         private static bool IsInEdgeChain(SplitEvent split, EdgeChain chain)
@@ -1179,7 +1188,7 @@ loop:
 
         #region Nested classes
 
-        private class ChainComparer : IComparer<IChain>
+        private sealed class ChainComparer : IComparer<IChain>
         {
             public ChainComparer(Vector2d center)
             {
@@ -1207,7 +1216,7 @@ loop:
             }
         }
 
-        private class SkeletonEventDistanseComparer : IComparer<SkeletonEvent>
+        private sealed class SkeletonEventDistanseComparer : IComparer<SkeletonEvent>
         {
             public int Compare(SkeletonEvent left, SkeletonEvent right)
             {
@@ -1215,7 +1224,7 @@ loop:
             }
         };
 
-        private class SplitCandidate
+        private sealed class SplitCandidate
         {
             public readonly double Distance;
             public readonly Edge OppositeEdge;
@@ -1231,7 +1240,7 @@ loop:
             }
         }
 
-        private class SplitCandidateComparer : IComparer<SplitCandidate>
+        private sealed class SplitCandidateComparer : IComparer<SplitCandidate>
         {
             public int Compare(SplitCandidate left, SplitCandidate right)
             {
