@@ -4,7 +4,7 @@ using Sutro.StraightSkeleton.Circular;
 
 namespace Sutro.StraightSkeleton
 {
-    internal class LavUtil
+    internal static class LavUtil
     {
         /// <summary>
         ///     Cuts all vertex after given startVertex and before endVertex. start and

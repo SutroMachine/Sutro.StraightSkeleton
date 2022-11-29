@@ -2,8 +2,8 @@
 {
     public class CircularNode
     {
-        public CircularNode Next;
-        public CircularNode Previous;
+        public CircularNode Next { get; set; }
+        public CircularNode Previous { get; set; }
 
         public void AddNext(CircularNode node)
         {

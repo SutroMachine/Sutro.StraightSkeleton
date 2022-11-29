@@ -184,12 +184,11 @@ namespace Sutro.StraightSkeleton
                 if (face.Size > 0)
                 {
                     var faceList = new Polygon2d();
-                    foreach (var fn in face.Iterate())
+                    foreach (var vertex in face.Iterate().Select(fn => fn.Vertex))
                     {
-                        var point = fn.Vertex.Point;
-                        faceList.AppendVertex(point);
-                        if (!distances.ContainsKey(point))
-                            distances.Add(point, fn.Vertex.Distance);
+                        faceList.AppendVertex(vertex.Point);
+                        if (!distances.ContainsKey(vertex.Point))
+                            distances.Add(vertex.Point, vertex.Distance);
                     }
                     edgeOutputs.Add(new EdgeResult(face.Edge, faceList));
                 }
@@ -529,19 +528,17 @@ namespace Sutro.StraightSkeleton
             {
                 var point = oppositeEdge.Point;
 
-                if (Math.Abs(distanceSquared - (-1)) > SplitEpsilon)
+                if (Math.Abs(distanceSquared - (-1)) > SplitEpsilon &&
+                    source.DistanceSquared(point) > distanceSquared + SplitEpsilon)
                 {
-                    if (source.DistanceSquared(point) > distanceSquared + SplitEpsilon)
-                    {
-                        // Current split event distance from source of event is
-                        // greater then for edge event. Split event can be reject.
-                        // Distance from source is not the same as distance for
-                        // edge. Two events can have the same distance to edge but
-                        // they will be in different distance form its source.
-                        // Unnecessary events should be reject otherwise they cause
-                        // problems for degenerate cases.
-                        continue;
-                    }
+                    // Current split event distance from source of event is
+                    // greater then for edge event. Split event can be reject.
+                    // Distance from source is not the same as distance for
+                    // edge. Two events can have the same distance to edge but
+                    // they will be in different distance form its source.
+                    // Unnecessary events should be reject otherwise they cause
+                    // problems for degenerate cases.
+                    continue;
                 }
 
                 // check if it is vertex split event
@@ -597,41 +594,41 @@ namespace Sutro.StraightSkeleton
 
             foreach (var skeletonEvent in cluster)
             {
-                if (skeletonEvent is EdgeEvent)
-                    edgeCluster.Add((EdgeEvent)skeletonEvent);
-                else
+                switch (skeletonEvent)
                 {
-                    if (skeletonEvent is VertexSplitEvent)
-                    {
+                    case EdgeEvent edgeEvent:
+                        edgeCluster.Add(edgeEvent);
+                        break;
+
+                    case VertexSplitEvent _:
                         // It will be processed in next loop to find unique split
                         // events for one parent.
-                    }
-                    else if (skeletonEvent is SplitEvent)
-                    {
-                        var splitEvent = (SplitEvent)skeletonEvent;
+                        break;
+
+                    case SplitEvent splitEvent:
                         // If vertex and split event exist for the same parent
                         // vertex and at the same level always prefer split.
                         vertexEventsParents.Add(splitEvent.Parent);
                         splitCluster.Add(splitEvent);
-                    }
+                        break;
+
+                    default:
+                        break;
                 }
             }
 
             foreach (var skeletonEvent in cluster)
             {
-                if (skeletonEvent is VertexSplitEvent)
+                if (skeletonEvent is VertexSplitEvent vertexSplitEvent &&
+                    !vertexEventsParents.Contains(vertexSplitEvent.Parent))
                 {
-                    var vertexEvent = (VertexSplitEvent)skeletonEvent;
-                    if (!vertexEventsParents.Contains(vertexEvent.Parent))
-                    {
-                        // It can be created multiple vertex events for one parent.
-                        // Its is caused because two edges share one vertex and new
-                        //event will be added to both of them. When processing we
-                        // need always group them into one per vertex. Always prefer
-                        // split events over vertex events.
-                        vertexEventsParents.Add(vertexEvent.Parent);
-                        splitCluster.Add(vertexEvent);
-                    }
+                    // It can be created multiple vertex events for one parent.
+                    // Its is caused because two edges share one vertex and new
+                    //event will be added to both of them. When processing we
+                    // need always group them into one per vertex. Always prefer
+                    // split events over vertex events.
+                    vertexEventsParents.Add(vertexSplitEvent.Parent);
+                    splitCluster.Add(vertexSplitEvent);
                 }
             }
 
@@ -647,21 +644,19 @@ namespace Sutro.StraightSkeleton
             foreach (var edgeChain in edgeChains)
                 chains.Add(edgeChain);
 
-splitEventLoop:
             while (splitCluster.Any())
             {
                 var split = splitCluster[0];
                 splitCluster.RemoveAt(0);
 
-                foreach (var chain in edgeChains)
+                // check if chain is split type
+                if (edgeChains.Any(chain => IsInEdgeChain(split, chain)))
                 {
-                    // check if chain is split type
-                    if (IsInEdgeChain(split, chain))
-                        goto splitEventLoop;
+                    continue;
                 }
 
                 // split event is not part of any edge chain, it should be added as
-                // a new single element chain;
+                // a single element chain.
                 chains.Add(new SplitChain(split));
             }
 
@@ -759,8 +754,8 @@ splitEventLoop:
             List<IChain> chains, Vector2d center)
         {
             // Add chain created from opposite edge, this chain have to be
-            // calculated during processing@event because lav could change during
-            // processing another@events on the same level
+            // calculated during processing @event because lav could change during
+            // processing another @events on the same level
             var oppositeEdges = new HashSet<Edge>();
 
             var oppositeEdgeChains = new List<IChain>();
@@ -769,9 +764,8 @@ splitEventLoop:
             foreach (var chain in chains)
             {
                 // add opposite edges as chain parts
-                if (chain is SplitChain)
+                if (chain is SplitChain splitChain)
                 {
-                    var splitChain = (SplitChain)chain;
                     var oppositeEdge = splitChain.OppositeEdge;
                     if (oppositeEdge != null && !oppositeEdges.Contains(oppositeEdge))
                     {
@@ -877,7 +871,7 @@ splitEventLoop:
                 {
                     var test = levelEvents[j];
 
-                    if (IsEventInGroup(parentGroup, test))
+                    if (IsEventInGroup(parentGroup, test) || eventCenter.Distance(test.V) < SplitEpsilon)
                     {
                         // Because of numerical errors split event and edge event
                         // can appear in slight different point. Epsilon can be
@@ -885,16 +879,6 @@ splitEventLoop:
                         // little changes in level. If two events for the same level
                         // share the same parent, they should be merge together.
 
-                        var item = levelEvents[j];
-                        levelEvents.RemoveAt(j);
-                        cluster.Add(item);
-                        AddEventToGroup(parentGroup, test);
-                        j--;
-                    }
-                    // is near
-                    else if (eventCenter.Distance(test.V) < SplitEpsilon)
-                    {
-                        // group all event when the result point are near each other
                         var item = levelEvents[j];
                         levelEvents.RemoveAt(j);
                         cluster.Add(item);
