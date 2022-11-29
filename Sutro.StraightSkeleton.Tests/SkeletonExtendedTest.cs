@@ -102,7 +102,7 @@ namespace Sutro.StraightSkeleton.Tests
             expected.Add(new Vector2d(3.3985049136946692, -105.76431087574309));
             expected.Add(new Vector2d(6.716441822947157, -62.56159679612162));
 
-            var sk = SkeletonBuilder.Build(polygon, new List<List<Vector2d>> { hole1, hole2 });
+            var sk = new SkeletonBuilder().Build(polygon, new List<List<Vector2d>> { hole1, hole2 });
 
             SkeletonTestUtil.AssertExpectedPoints(expected, SkeletonTestUtil.GetFacePoints(sk));
         }
@@ -140,7 +140,7 @@ namespace Sutro.StraightSkeleton.Tests
                 new Vector2d(-33.5746660958561, 7.959374567061363)
             };
 
-            var sk = SkeletonBuilder.Build(polygon, null);
+            var sk = new SkeletonBuilder().Build(polygon, null);
 
             SkeletonTestUtil.AssertExpectedPoints(expected, SkeletonTestUtil.GetFacePoints(sk));
         }
@@ -342,7 +342,7 @@ namespace Sutro.StraightSkeleton.Tests
                 new Vector2d(-8.487318836690127, -0.15957288669922365)
             };
 
-            var sk = SkeletonBuilder.Build(polygon, null);
+            var sk = new SkeletonBuilder().Build(polygon, null);
 
             SkeletonTestUtil.AssertExpectedPoints(expected, SkeletonTestUtil.GetFacePoints(sk));
         }
@@ -730,7 +730,7 @@ namespace Sutro.StraightSkeleton.Tests
                 new Vector2d(-179.48562560660088, 67.00473863516775)
             };
 
-            var sk = SkeletonBuilder.Build(polygon, new List<List<Vector2d>> { hole1, hole2, hole3, hole4, hole5 });
+            var sk = new SkeletonBuilder().Build(polygon, new List<List<Vector2d>> { hole1, hole2, hole3, hole4, hole5 });
 
             SkeletonTestUtil.AssertExpectedPoints(expected, SkeletonTestUtil.GetFacePoints(sk));
         }
@@ -810,7 +810,7 @@ namespace Sutro.StraightSkeleton.Tests
                 new Vector2d(-8.486848592193729, -0.15956404547695954)
             };
 
-            var sk = SkeletonBuilder.Build(polygon, null);
+            var sk = new SkeletonBuilder().Build(polygon, null);
 
             SkeletonTestUtil.AssertExpectedPoints(expected, SkeletonTestUtil.GetFacePoints(sk));
         }
@@ -856,7 +856,7 @@ namespace Sutro.StraightSkeleton.Tests
                 new Vector2d(5.961683861298499, -7.100422025402652)
             };
 
-            var sk = SkeletonBuilder.Build(polygon, null);
+            var sk = new SkeletonBuilder().Build(polygon, null);
 
             SkeletonTestUtil.AssertExpectedPoints(expected, SkeletonTestUtil.GetFacePoints(sk));
         }
@@ -916,7 +916,7 @@ namespace Sutro.StraightSkeleton.Tests
                 new Vector2d(6.917359502399792, 6.063416519745084)
             };
 
-            var sk = SkeletonBuilder.Build(polygon, null);
+            var sk = new SkeletonBuilder().Build(polygon, null);
 
             SkeletonTestUtil.AssertExpectedPoints(expected, SkeletonTestUtil.GetFacePoints(sk));
         }
@@ -946,7 +946,7 @@ namespace Sutro.StraightSkeleton.Tests
                 new Vector2d(-15.548141335420517, 106.42963023576449)
             };
 
-            var sk = SkeletonBuilder.Build(polygon, null);
+            var sk = new SkeletonBuilder().Build(polygon, null);
 
             SkeletonTestUtil.AssertExpectedPoints(expected, SkeletonTestUtil.GetFacePoints(sk));
         }

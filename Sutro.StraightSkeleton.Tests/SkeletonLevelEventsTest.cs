@@ -27,7 +27,7 @@ namespace Sutro.StraightSkeleton.Tests
             };
             expected.AddRange(outer);
 
-            var sk = SkeletonBuilder.Build(outer, null);
+            var sk = new SkeletonBuilder().Build(outer, null);
 
             SkeletonTestUtil.AssertExpectedPoints(expected, SkeletonTestUtil.GetFacePoints(sk));
         }
@@ -48,7 +48,7 @@ namespace Sutro.StraightSkeleton.Tests
             };
             expected.AddRange(outer);
 
-            var sk = SkeletonBuilder.Build(outer, null);
+            var sk = new SkeletonBuilder().Build(outer, null);
 
             SkeletonTestUtil.AssertExpectedPoints(expected, SkeletonTestUtil.GetFacePoints(sk));
         }
@@ -76,7 +76,7 @@ namespace Sutro.StraightSkeleton.Tests
             expected.Add(new Vector2d(0, 0));
             expected.Add(new Vector2d(0, 2));
 
-            var sk = SkeletonBuilder.Build(outer, null);
+            var sk = new SkeletonBuilder().Build(outer, null);
 
             SkeletonTestUtil.AssertExpectedPoints(expected, SkeletonTestUtil.GetFacePoints(sk));
         }
@@ -109,7 +109,7 @@ namespace Sutro.StraightSkeleton.Tests
                 new Vector2d(-2, 0)
             };
 
-            var sk = SkeletonBuilder.Build(outer, null);
+            var sk = new SkeletonBuilder().Build(outer, null);
 
             SkeletonTestUtil.AssertExpectedPoints(expected, SkeletonTestUtil.GetFacePoints(sk));
         }
@@ -135,7 +135,7 @@ namespace Sutro.StraightSkeleton.Tests
                 new Vector2d(3.0000000000000004, -1.854101966249685)
             };
 
-            var sk = SkeletonBuilder.Build(outer, null);
+            var sk = new SkeletonBuilder().Build(outer, null);
 
             SkeletonTestUtil.AssertExpectedPoints(expected, SkeletonTestUtil.GetFacePoints(sk));
         }
@@ -163,7 +163,7 @@ namespace Sutro.StraightSkeleton.Tests
                 new Vector2d(3.0000000000000004, -1.854101966249685)
             };
 
-            var sk = SkeletonBuilder.Build(outer, null);
+            var sk = new SkeletonBuilder().Build(outer, null);
 
             SkeletonTestUtil.AssertExpectedPoints(expected, SkeletonTestUtil.GetFacePoints(sk));
 
@@ -212,7 +212,7 @@ namespace Sutro.StraightSkeleton.Tests
                 new Vector2d(3.0, 2.0)
             };
 
-            var sk = SkeletonBuilder.Build(outer, new List<List<Vector2d>> { h1, h2, h3, h4 });
+            var sk = new SkeletonBuilder().Build(outer, new List<List<Vector2d>> { h1, h2, h3, h4 });
 
             SkeletonTestUtil.AssertExpectedPoints(expected, SkeletonTestUtil.GetFacePoints(sk));
         }

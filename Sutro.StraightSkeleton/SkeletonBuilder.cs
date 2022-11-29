@@ -10,6 +10,24 @@ using Sutro.StraightSkeleton.Primitives;
 
 namespace Sutro.StraightSkeleton
 {
+    public class ExternalSkeletonBuilder : SkeletonBuilderBase
+
+    {
+        protected override Line2d CalcInitialBisector(Vector2d point, Edge edgeBefore, Edge edgeAfter)
+        {
+            // Reverse direction to make the ray external instead of internal
+            return new Line2d(point, -CalcVectorBisector(edgeBefore.Norm, edgeAfter.Norm));
+        }
+    }
+
+    public class SkeletonBuilder : SkeletonBuilderBase
+    {
+        protected override Line2d CalcInitialBisector(Vector2d point, Edge edgeBefore, Edge edgeAfter)
+        {
+            return new Line2d(point, CalcVectorBisector(edgeBefore.Norm, edgeAfter.Norm));
+        }
+    }
+
     /// <summary>
     ///     Straight skeleton algorithm implementation. Base on highly modified Petr
     ///     Felkel and Stepan Obdrzalek algorithm.
@@ -17,21 +35,22 @@ namespace Sutro.StraightSkeleton
     /// <remarks>
     ///     This is .NET adopted port of java implementation from kendzi-straight-skeleton library.
     /// </remarks>
-    public class SkeletonBuilder
+    ///
+    public abstract class SkeletonBuilderBase
     {
         /// <summary> Creates straight skeleton for given polygon. </summary>
-        public static Skeleton Build(List<Vector2d> points)
+        public Skeleton Build(List<Vector2d> points)
         {
             return Build(new GeneralPolygon2d(new Polygon2d(points)));
         }
 
-        public static Skeleton Build(Polygon2d polygon)
+        public Skeleton Build(Polygon2d polygon)
         {
             return Build(new GeneralPolygon2d(polygon));
         }
 
         /// <summary> Creates straight skeleton for given polygon with holes. </summary>
-        public static Skeleton Build(List<Vector2d> outer, List<List<Vector2d>> holes)
+        public Skeleton Build(List<Vector2d> outer, List<List<Vector2d>> holes)
         {
             var gpoly = new GeneralPolygon2d(new Polygon2d(outer));
 
@@ -46,7 +65,7 @@ namespace Sutro.StraightSkeleton
         }
 
         /// <summary> Creates straight skeleton for given polygon with holes. </summary>
-        public static Skeleton Build(GeneralPolygon2d gpoly)
+        public Skeleton Build(GeneralPolygon2d gpoly)
         {
             ValidateGeneralPolygon(gpoly);
             gpoly.EnforceCounterClockwise();
@@ -290,13 +309,9 @@ namespace Sutro.StraightSkeleton
             return count;
         }
 
-        private static Line2d CalcBisector(Vector2d p, Edge e1, Edge e2)
+        protected static Line2d CalcBisector(Vector2d p, Edge e1, Edge e2)
         {
-            var norm1 = e1.Norm;
-            var norm2 = e2.Norm;
-
-            var bisector = CalcVectorBisector(norm1, norm2);
-            return new Line2d(p, bisector);
+            return new Line2d(p, CalcVectorBisector(e1.Norm, e2.Norm));
         }
 
         private static SplitCandidate CalcCandidatePointForSplit(Vertex vertex, Edge edge)
@@ -369,7 +384,7 @@ namespace Sutro.StraightSkeleton
             return ret;
         }
 
-        private static Vector2d CalcVectorBisector(Vector2d norm1, Vector2d norm2)
+        protected static Vector2d CalcVectorBisector(Vector2d norm1, Vector2d norm2)
         {
             return VectorExtensions.BisectorNormalized(norm1, norm2);
         }
@@ -913,7 +928,7 @@ namespace Sutro.StraightSkeleton
             }
         }
 
-        private static void InitSlav(Polygon2d polygon, HashSet<CircularList<Vertex>> sLav,
+        private void InitSlav(Polygon2d polygon, HashSet<CircularList<Vertex>> sLav,
             List<Edge> edges, List<FaceQueue> faces)
         {
             var edgesList = new CircularList<Edge>();
@@ -928,7 +943,7 @@ namespace Sutro.StraightSkeleton
             foreach (var edge in edgesList.Iterate())
             {
                 var nextEdge = edge.Next as Edge;
-                var bisector = CalcBisector(edge.End, edge, nextEdge);
+                var bisector = CalcInitialBisector(edge.End, edge, nextEdge);
 
                 edge.BisectorNext = bisector;
                 nextEdge.BisectorPrevious = bisector;
@@ -964,6 +979,8 @@ namespace Sutro.StraightSkeleton
                 next.LeftFace = leftFace;
             }
         }
+
+        protected abstract Line2d CalcInitialBisector(Vector2d point, Edge edgeBefore, Edge edgeAfter);
 
         private static bool IsEventInGroup(HashSet<Vertex> parentGroup, SkeletonEvent @event)
         {
