@@ -5,7 +5,7 @@ using System.Collections.Generic;
 namespace Sutro.StraightSkeleton.Tests
 {
     [TestClass]
-    internal class SkeletonTest
+    public class SkeletonTest
     {
         [TestMethod]
         public void CircularAddTest()
@@ -759,8 +759,54 @@ namespace Sutro.StraightSkeleton.Tests
                 new Vector2d(13.8633, -67.41)
             };
 
-            // just check that this runs without throwing an exception
+            var expected = new List<Vector2d>()
+            {
+                new Vector2d(48.816868004843244, 0.3106223475089106),
+                new Vector2d(80.647362101346815, -8.7498020589424179),
+                new Vector2d(81.0041, -8.8169),
+                new Vector2d(56.051, 72.1197),
+                new Vector2d(17.2096, 0.9978),
+                new Vector2d(39.442181978514512, -11.359065045826997),
+                new Vector2d(16.475, -0.3011),
+                new Vector2d(26.224155364962485, -27.565126844032932),
+                new Vector2d(17.878520097286149, -29.03147724955204),
+                new Vector2d(15.0244, 0.2603),
+                new Vector2d(-6.0399369366555407, -10.945372615178165),
+                new Vector2d(-7.064367637228405, -6.1561679706974841),
+                new Vector2d(23.9762, 39.6003),
+                new Vector2d(-6.8561845146788194, -5.8528381306077453),
+                new Vector2d(-18.0879, 10.6703),
+                new Vector2d(-19.1437, 9.961),
+                new Vector2d(-21.379638877822355, -3.7427286943879068),
+                new Vector2d(-20.173, 11.2989),
+                new Vector2d(-32.472188113119834, 12.50276058984125),
+                new Vector2d(-32.5991248256318, 11.001072813321093),
+                new Vector2d(0.44341839277721817, 42.145732234736627),
+                new Vector2d(8.0439, 36.0416),
+                new Vector2d(7.9861988986970953, 36.069613594056712),
+                new Vector2d(8.0445, 36.0529),
+                new Vector2d(6.9441884520974861, 57.668074359658476),
+                new Vector2d(6.5704734324223466, 49.96136086916713),
+                new Vector2d(23.813, 64.5547),
+                new Vector2d(-0.7203, 71.8831),
+                new Vector2d(-0.74935785026628, 71.771252057835326),
+                new Vector2d(-0.53794308740456209, 62.416203500443608),
+                new Vector2d(1.9023110448013114, 62.14687080579116),
+                new Vector2d(-0.7564, 71.8911),
+                new Vector2d(-68.8682, 48.1444),
+                new Vector2d(-5.513060484375238, 61.3924375688693),
+                new Vector2d(-4.8991, 53.0675),
+                new Vector2d(-3.5566, 53.1622),
+                new Vector2d(-3.0501, 51.9918),
+                new Vector2d(-46.0636, 12.2109),
+                new Vector2d(22.608306369026476, 16.177055691750891),
+                new Vector2d(13.8633, -67.41),
+                new Vector2d(80.8806, -8.9725)
+            };
+
             var sk = SkeletonBuilder.Build(polygon);
+
+            SkeletonTestUtil.AssertExpectedPoints(expected, SkeletonTestUtil.GetFacePoints(sk));
         }
     }
 }

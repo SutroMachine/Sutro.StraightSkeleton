@@ -71,26 +71,36 @@ namespace Sutro.StraightSkeleton
                 // start processing skeleton level
                 count = AssertMaxNumberOfInteraction(count);
                 var levelHeight = queue.Peek().Distance;
-                foreach (var @event in LoadAndGroupLevelEvents(queue))
+                foreach (var levelEvent in LoadAndGroupLevelEvents(queue))
                 {
                     // event is outdated some of parent vertex was processed before
-                    if (@event.IsObsolete)
+                    if (levelEvent.IsObsolete)
                         continue;
 
-                    if (@event is EdgeEvent)
-                        throw new InvalidOperationException("All edge@events should be converted to " +
-                                                            "MultiEdgeEvents for given level");
-                    if (@event is SplitEvent)
-                        throw new InvalidOperationException("All split events should be converted to" +
-                                                            " MultiSplitEvents for given level");
-                    if (@event is MultiSplitEvent)
-                        MultiSplitEvent((MultiSplitEvent)@event, sLav, queue, edges);
-                    else if (@event is PickEvent)
-                        PickEvent((PickEvent)@event);
-                    else if (@event is MultiEdgeEvent)
-                        MultiEdgeEvent((MultiEdgeEvent)@event, queue, edges);
-                    else
-                        throw new InvalidOperationException("Unknown event type: " + @event.GetType());
+                    switch (levelEvent)
+                    {
+                        case EdgeEvent edgeEvent:
+                            throw new InvalidOperationException("All edge@events should be converted to " +
+                                                                "MultiEdgeEvents for given level");
+                        case SplitEvent splitEvent:
+                            throw new InvalidOperationException("All split events should be converted to " +
+                                                                "MultiSplitEvents for given level");
+
+                        case MultiSplitEvent multiSplitEvent:
+                            MultiSplitEvent(multiSplitEvent, sLav, queue, edges);
+                            break;
+
+                        case PickEvent pickEvent:
+                            PickEvent(pickEvent);
+                            break;
+
+                        case MultiEdgeEvent multiEdgeEvent:
+                            MultiEdgeEvent(multiEdgeEvent, queue, edges);
+                            break;
+
+                        default:
+                            throw new InvalidOperationException("Unknown event type: " + levelEvent.GetType());
+                    }
                 }
 
                 ProcessTwoNodeLavs(sLav);
@@ -130,14 +140,16 @@ namespace Sutro.StraightSkeleton
         // Error epsilon.
         private const double SplitEpsilon = 1E-10;
 
-        private static void AddEventToGroup(HashSet<Vertex> parentGroup, SkeletonEvent @event)
+        private static void AddEventToGroup(HashSet<Vertex> parentGroup, SkeletonEvent skeletonEvent)
         {
-            if (@event is SplitEvent)
-                parentGroup.Add(((SplitEvent)@event).Parent);
-            else if (@event is EdgeEvent)
+            if (skeletonEvent is SplitEvent splitEvent)
             {
-                parentGroup.Add(((EdgeEvent)@event).PreviousVertex);
-                parentGroup.Add(((EdgeEvent)@event).NextVertex);
+                parentGroup.Add(splitEvent.Parent);
+            }
+            else if (skeletonEvent is EdgeEvent edgeEvent)
+            {
+                parentGroup.Add(edgeEvent.PreviousVertex);
+                parentGroup.Add(edgeEvent.NextVertex);
             }
         }
 
@@ -646,7 +658,7 @@ splitEventLoop:
                 }
 
                 // split event is not part of any edge chain, it should be added as
-                // new single element chain;
+                // a new single element chain;
                 chains.Add(new SplitChain(split));
             }
 
@@ -736,7 +748,7 @@ splitEventLoop:
         private static Vertex CreateMultiSplitVertex(Edge nextEdge, Edge previousEdge, Vector2d center, double distance)
         {
             var bisector = CalcBisector(center, previousEdge, nextEdge);
-            // edges are mirrored for@event
+            // edges are mirrored for event
             return new Vertex(center, distance, bisector, previousEdge, nextEdge);
         }
 
