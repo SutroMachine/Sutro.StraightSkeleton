@@ -74,6 +74,7 @@ namespace Sutro.StraightSkeleton
             var sLav = new HashSet<CircularList<Vertex>>();
             var faces = new List<FaceQueue>();
             var edges = new List<Edge>();
+            var unboundedRays = new List<Line2d>();
 
             InitSlav(gpoly.Outer, sLav, edges, faces);
 
@@ -82,7 +83,7 @@ namespace Sutro.StraightSkeleton
                 InitSlav(inner, sLav, edges, faces);
             }
 
-            InitEvents(sLav, queue, edges);
+            InitEvents(sLav, queue, edges, unboundedRays);
 
             var count = 0;
             while (!queue.Empty)
@@ -106,7 +107,7 @@ namespace Sutro.StraightSkeleton
                                                                 "MultiSplitEvents for given level");
 
                         case MultiSplitEvent multiSplitEvent:
-                            MultiSplitEvent(multiSplitEvent, sLav, queue, edges);
+                            MultiSplitEvent(multiSplitEvent, sLav, queue, edges, unboundedRays);
                             break;
 
                         case PickEvent pickEvent:
@@ -114,7 +115,7 @@ namespace Sutro.StraightSkeleton
                             break;
 
                         case MultiEdgeEvent multiEdgeEvent:
-                            MultiEdgeEvent(multiEdgeEvent, queue, edges);
+                            MultiEdgeEvent(multiEdgeEvent, queue, edges, unboundedRays);
                             break;
 
                         default:
@@ -127,7 +128,7 @@ namespace Sutro.StraightSkeleton
                 RemoveEmptyLav(sLav);
             }
 
-            return AddFacesToOutput(faces);
+            return AddFacesToOutput(faces, unboundedRays);
         }
 
         internal static bool EdgeBehindBisector(Line2d bisector, LineLinear2d edge)
@@ -158,7 +159,7 @@ namespace Sutro.StraightSkeleton
         }
 
         // Error epsilon.
-        private const double SplitEpsilon = 1E-10;
+        private const double SplitEpsilon = 1E-6;
 
         private static void AddEventToGroup(HashSet<Vertex> parentGroup, SkeletonEvent skeletonEvent)
         {
@@ -194,7 +195,7 @@ namespace Sutro.StraightSkeleton
             newVertex.RightFace = fn;
         }
 
-        private static Skeleton AddFacesToOutput(List<FaceQueue> faces)
+        private static Skeleton AddFacesToOutput(List<FaceQueue> faces, List<Line2d> unboundedRays)
         {
             var edgeOutputs = new List<EdgeResult>();
             var distances = new Dictionary<Vector2d, double>();
@@ -212,7 +213,7 @@ namespace Sutro.StraightSkeleton
                     edgeOutputs.Add(new EdgeResult(face.Edge, faceList));
                 }
             }
-            return new Skeleton(edgeOutputs, distances);
+            return new Skeleton(edgeOutputs, distances, unboundedRays);
         }
 
         private static void AddMultiBackFaces(List<EdgeEvent> edgeList, Vertex edgeVertex)
@@ -509,10 +510,10 @@ namespace Sutro.StraightSkeleton
                 queue.Add(CreateEdgeEvent(point, previousVertex, nextVertex));
         }
 
-        private static void ComputeEvents(Vertex vertex, PriorityQueue<SkeletonEvent> queue, List<Edge> edges)
+        private static void ComputeEvents(Vertex vertex, PriorityQueue<SkeletonEvent> queue, List<Edge> edges, List<Line2d> unboundedRays)
         {
             var distanceSquared = ComputeCloserEdgeEvent(vertex, queue);
-            ComputeSplitEvents(vertex, edges, queue, distanceSquared);
+            ComputeSplitEvents(vertex, edges, queue, distanceSquared, unboundedRays);
         }
 
         private static Vector2d ComputeIntersectionBisectors(Vertex vertexPrevious, Vertex vertexNext)
@@ -533,10 +534,15 @@ namespace Sutro.StraightSkeleton
         }
 
         private static void ComputeSplitEvents(Vertex vertex, List<Edge> edges, PriorityQueue<SkeletonEvent> queue,
-            double distanceSquared)
+            double distanceSquared, List<Line2d> unboundedRays)
         {
             var source = vertex.Point;
             var oppositeEdges = CalcOppositeEdges(vertex, edges);
+
+            if (oppositeEdges.Count == 0)
+            {
+                unboundedRays.Add(new Line2d(vertex.Bisector.Origin, vertex.Bisector.Direction));
+            }
 
             // check if it is vertex split event
             foreach (var oppositeEdge in oppositeEdges)
@@ -577,8 +583,8 @@ namespace Sutro.StraightSkeleton
             var beginEdge2 = beginNextVertex.PreviousEdge;
             var endEdge2 = endPreviousVertex.NextEdge;
 
-            if (beginEdge != beginEdge2 || endEdge != endEdge2)
-                throw new InvalidOperationException();
+            //if (beginEdge != beginEdge2 || endEdge != endEdge2)
+            //    throw new InvalidOperationException();
 
             // Check if edges are parallel and in opposite direction to each other.
             if (beginEdge.Norm.Dot(endEdge.Norm) < -0.97)
@@ -910,12 +916,12 @@ namespace Sutro.StraightSkeleton
         }
 
         private static void InitEvents(HashSet<CircularList<Vertex>> sLav,
-            PriorityQueue<SkeletonEvent> queue, List<Edge> edges)
+            PriorityQueue<SkeletonEvent> queue, List<Edge> edges, List<Line2d> unboundedRays)
         {
             foreach (var lav in sLav)
             {
                 foreach (var vertex in lav.Iterate())
-                    ComputeSplitEvents(vertex, edges, queue, -1);
+                    ComputeSplitEvents(vertex, edges, queue, -1, unboundedRays);
             }
 
             foreach (var lav in sLav)
@@ -1038,7 +1044,7 @@ namespace Sutro.StraightSkeleton
         }
 
         private static void MultiEdgeEvent(MultiEdgeEvent @event,
-            PriorityQueue<SkeletonEvent> queue, List<Edge> edges)
+            PriorityQueue<SkeletonEvent> queue, List<Edge> edges, List<Line2d> unboundedRays)
         {
             var center = @event.V;
             var edgeList = @event.Chain.EdgeList;
@@ -1064,11 +1070,11 @@ namespace Sutro.StraightSkeleton
             // back faces
             AddMultiBackFaces(edgeList, edgeVertex);
 
-            ComputeEvents(edgeVertex, queue, edges);
+            ComputeEvents(edgeVertex, queue, edges, unboundedRays);
         }
 
         private static void MultiSplitEvent(MultiSplitEvent @event, HashSet<CircularList<Vertex>> sLav,
-            PriorityQueue<SkeletonEvent> queue, List<Edge> edges)
+            PriorityQueue<SkeletonEvent> queue, List<Edge> edges, List<Line2d> unboundedRays)
         {
             var chains = @event.Chains;
             var center = @event.V;
@@ -1116,7 +1122,7 @@ namespace Sutro.StraightSkeleton
                     endPreviousVertex.AddNext(newVertex);
                 }
 
-                ComputeEvents(newVertex, queue, edges);
+                ComputeEvents(newVertex, queue, edges, unboundedRays);
                 lastFaceNode = AddSplitFaces(lastFaceNode, chainBegin, chainEnd, newVertex);
             }
 
