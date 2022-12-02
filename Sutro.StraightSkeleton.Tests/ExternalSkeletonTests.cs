@@ -11,11 +11,15 @@ namespace Sutro.StraightSkeleton.Tests
         public void RectangleExternal()
         {
             var polygon = Polygon2d.MakeRectangle(Vector2d.Zero, 20, 40);
+            var boundary = Polygon2d.MakeRectangle(new Vector2d(1, 4), 30, 54);
 
-            var sk = new ExternalSkeletonBuilder().Build(polygon);
+            var sk = new ExternalSkeletonBuilder()
+                .AddBoundary(boundary)
+                .Build(new GeneralPolygon2d(polygon));
 
             var writer = new SVGWriter();
             sk.AddToSvg(writer);
+            writer.AddPolygon(boundary, SVGWriter.Style.Outline("red", 0.1f));
             writer.Write("RectangleExternal.svg");
         }
 
@@ -45,7 +49,6 @@ namespace Sutro.StraightSkeleton.Tests
             sk.AddToSvg(writer);
             writer.Write("BowTieInternal.svg");
         }
-
 
         private static Polygon2d MakeBowTie()
         {

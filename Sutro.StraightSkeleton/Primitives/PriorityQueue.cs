@@ -65,6 +65,15 @@ namespace Sutro.StraightSkeleton.Primitives
             }
         }
 
+        public void AddRange(IEnumerable<T> items)
+        {
+            // There is probably a faster way of adding multiple items
+            foreach (var item in items)
+            {
+                Add(item);
+            }
+        }
+
         /// <summary>Clear all the elements from the priority queue</summary>
         public void Clear()
         {
