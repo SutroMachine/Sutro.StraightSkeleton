@@ -15,15 +15,18 @@ namespace Sutro.StraightSkeleton.Tests
 
             var sk = new ExternalSkeletonBuilder()
                 .AddBoundary(boundary)
-                .Build(new GeneralPolygon2d(polygon));
+                .Build(new GeneralPolygon2d(polygon), "RectangleExternal");
         }
 
         [TestMethod]
         public void BowTieExternal()
         {
             var bowtie = MakeBowTie();
+            var boundary = Polygon2d.MakeRectangle(Vector2d.Zero, 30, 40);
 
-            var sk = new ExternalSkeletonBuilder().Build(bowtie);
+            var sk = new ExternalSkeletonBuilder()
+                .AddBoundary(boundary)
+                .Build(new GeneralPolygon2d(bowtie), "BowTieExternal");
         }
 
         [TestMethod]
@@ -56,7 +59,7 @@ namespace Sutro.StraightSkeleton.Tests
         {
             var polygon = Polygon2d.MakeRectangle(Vector2d.Zero, 20, 40);
 
-            var sk = new SkeletonBuilder().Build(polygon);
+            var sk = new SkeletonBuilder().Build(new GeneralPolygon2d(polygon), "RectangleInternal");
         }
     }
 }

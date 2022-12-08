@@ -7,11 +7,16 @@ namespace Sutro.StraightSkeleton.Events
     {
         public Vertex Parent { get; }
 
-        public override bool IsObsolete => false;
+        public override bool IsObsolete => Parent.IsProcessed;
 
         public BoundaryEvent(Vector2d point, double distance, Vertex parent) : base(point, distance)
         {
             Parent = parent;
+        }
+
+        public override string ToString()
+        {
+            return "BoundaryIntersection [V=" + V + ", Distance=" + Distance + "]";
         }
     }
 }

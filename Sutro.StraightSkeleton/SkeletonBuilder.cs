@@ -141,12 +141,19 @@ namespace Sutro.StraightSkeleton
                             MultiSplitEvent(multiSplitEvent, sLav, queue, edges, step.Segments);
                             break;
 
+                        case BoundaryEvent boundaryEvent:
+                            if (boundaryEvent.Parent.IsProcessed)
+                                break;
+                            boundaryEvent.Parent.IsProcessed = true;
+                            step.Segments.Add(new Segment2d(boundaryEvent.Parent.Point, boundaryEvent.V));
+                            break;
+
                         case PickEvent pickEvent:
                             PickEvent(pickEvent);
                             break;
 
                         case MultiEdgeEvent multiEdgeEvent:
-                            MultiEdgeEvent(multiEdgeEvent, queue, edges);
+                            MultiEdgeEvent(multiEdgeEvent, queue, edges, step.Segments);
                             break;
 
                         default:
@@ -210,6 +217,10 @@ namespace Sutro.StraightSkeleton
             {
                 parentGroup.Add(edgeEvent.PreviousVertex);
                 parentGroup.Add(edgeEvent.NextVertex);
+            }
+            else if (skeletonEvent is BoundaryEvent boundaryEvent)
+            {
+                parentGroup.Add(boundaryEvent.Parent);
             }
         }
 
@@ -440,7 +451,7 @@ namespace Sutro.StraightSkeleton
 
                     if (intersection.Result == IntersectionResult.Intersects)
                     {
-                        yield return new BoundaryEvent(intersection.Point, intersection.Parameter, vertex);
+                        yield return new BoundaryEvent(intersection.Point, intersection.Parameter + vertex.Distance, vertex);
                     }
                 }
             }
@@ -571,10 +582,11 @@ namespace Sutro.StraightSkeleton
                 queue.Add(CreateEdgeEvent(point, previousVertex, nextVertex));
         }
 
-        private static void ComputeEvents(Vertex vertex, PriorityQueue<SkeletonEvent> queue, List<Edge> edges)
+        private void ComputeEvents(Vertex vertex, PriorityQueue<SkeletonEvent> queue, List<Edge> edges)
         {
             var distanceSquared = ComputeCloserEdgeEvent(vertex, queue);
             queue.AddRange(ComputeSplitEvents(vertex, edges, distanceSquared));
+            queue.AddRange(ComputeBoundaryEvents(vertex));
         }
 
         private static Vector2d ComputeIntersectionBisectors(Vertex vertexPrevious, Vertex vertexNext)
@@ -940,6 +952,13 @@ namespace Sutro.StraightSkeleton
                 var @eventCenter = @event.V;
                 var distance = @event.Distance;
 
+                if (@event is BoundaryEvent boundaryEvent)
+                {
+                    // TODO: Add smarter handling for boundary events
+                    ret.Add(@event);
+                    continue;
+                }
+
                 AddEventToGroup(parentGroup, @event);
 
                 var cluster = new List<SkeletonEvent> { @event };
@@ -1057,6 +1076,7 @@ namespace Sutro.StraightSkeleton
             return @event switch
             {
                 SplitEvent splitEvent => parentGroup.Contains(splitEvent.Parent),
+                BoundaryEvent boundaryEvent => parentGroup.Contains(boundaryEvent.Parent),
                 EdgeEvent edgeEvent => parentGroup.Contains(edgeEvent.PreviousVertex) || parentGroup.Contains(edgeEvent.NextVertex),
                 _ => false,
             };
@@ -1107,8 +1127,8 @@ namespace Sutro.StraightSkeleton
             return level;
         }
 
-        private static void MultiEdgeEvent(MultiEdgeEvent @event,
-            PriorityQueue<SkeletonEvent> queue, List<Edge> edges)
+        private void MultiEdgeEvent(MultiEdgeEvent @event,
+            PriorityQueue<SkeletonEvent> queue, List<Edge> edges, List<Segment2d> segments)
         {
             var center = @event.V;
             var edgeList = @event.Chain.EdgeList;
@@ -1119,9 +1139,17 @@ namespace Sutro.StraightSkeleton
             var nextVertex = @event.Chain.NextVertex;
             nextVertex.IsProcessed = true;
 
-            var bisector = CalcBisector(center, previousVertex.PreviousEdge, nextVertex.NextEdge);
+            var bisector = CalcInitialBisector(center, previousVertex.PreviousEdge, nextVertex.NextEdge);
             var edgeVertex = new Vertex(center, @event.Distance, bisector, previousVertex.PreviousEdge,
                 nextVertex.NextEdge);
+
+            var consumedVertices = new List<Vertex> { previousVertex };
+            consumedVertices.AddRange(@event.Chain.EdgeList.Select(edge => edge.NextVertex));
+
+            foreach (var v in consumedVertices)
+            {
+                segments.Add(new Segment2d(v.Point, center));
+            }
 
             // left face
             AddFaceLeft(edgeVertex, previousVertex);
@@ -1137,7 +1165,7 @@ namespace Sutro.StraightSkeleton
             ComputeEvents(edgeVertex, queue, edges);
         }
 
-        private static void MultiSplitEvent(MultiSplitEvent @event, HashSet<CircularList<Vertex>> sLav,
+        private void MultiSplitEvent(MultiSplitEvent @event, HashSet<CircularList<Vertex>> sLav,
             PriorityQueue<SkeletonEvent> queue, List<Edge> edges, List<Segment2d> segments)
         {
             var chains = @event.Chains;

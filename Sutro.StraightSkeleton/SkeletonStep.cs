@@ -33,10 +33,11 @@ namespace Sutro.StraightSkeleton
             foreach (var vertex in ActiveVertices.SelectMany(list => list.Iterate()))
             {
                 writer.AddCircle(new Circle2d(vertex.Point, pointDiam * 2), activeVertexPointStyle);
+                writer.AddLine(new Segment2d(vertex.Point, vertex.Bisector.PointAt(2)), activeVertexPointStyle);
             }
 
             var eventQueueLineStyle = SVGWriter.Style.Outline("gray", lineWidth);
-            foreach (var skeletonEvent in EventQueue.PeekIterate())
+            foreach (var skeletonEvent in EventQueue.PeekIterate().Where(e => !e.IsObsolete))
             {
                 switch (skeletonEvent)
                 {
@@ -75,7 +76,7 @@ namespace Sutro.StraightSkeleton
                 writer.AddCircle(new Circle2d(edge.Segment.P0, 0.15f), boundaryEdgePointStyle);
             }
 
-            bounds.Expand(5);
+            bounds.Expand(10);
             writer.AddLine(new Segment2d(bounds.GetCorner(0), bounds.GetCorner(1)), SVGWriter.Style.Outline("white", 0));
             writer.AddLine(new Segment2d(bounds.GetCorner(2), bounds.GetCorner(3)), SVGWriter.Style.Outline("white", 0));
 
