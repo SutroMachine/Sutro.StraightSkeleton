@@ -171,6 +171,16 @@ namespace Sutro.StraightSkeleton
 
             var skeleton = AddFacesToOutput(faces);
 
+            var finalWriter = new SVGWriter();
+            var bounds = new AxisAlignedBox2d();
+
+            step.AddEdgesToSvg(finalWriter, ref bounds);
+            step.AddBoundaryEdgeToSvg(finalWriter, ref bounds);
+            step.AddSegmentsToSvg(finalWriter);
+
+            skeleton.AddToSVG(finalWriter, ref bounds);
+            finalWriter.Write($"{svgPrefix}-FINAL.svg");
+
             // Clean up for next usage
             _boundaryEdgeLoops.Clear();
 
