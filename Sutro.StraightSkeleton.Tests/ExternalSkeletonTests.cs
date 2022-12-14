@@ -22,7 +22,14 @@ namespace Sutro.StraightSkeleton.Tests
         public void BowTieExternal()
         {
             var bowtie = MakeBowTie();
-            var boundary = Polygon2d.MakeRectangle(Vector2d.Zero, 30, 40);
+            var boundary = new Polygon2d(new[] {
+                new Vector2d(-15, -20),
+                new Vector2d(-10, -22),
+                new Vector2d(10, -18),
+                new Vector2d(15, -20),
+                new Vector2d(15, 20),
+                new Vector2d(-15, 20),
+            });
 
             var sk = new ExternalSkeletonBuilder()
                 .AddBoundary(boundary)

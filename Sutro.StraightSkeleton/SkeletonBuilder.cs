@@ -116,6 +116,9 @@ namespace Sutro.StraightSkeleton
             int stepCount = 0;
             step.ToSvg($"{svgPrefix}-{stepCount}.svg");
 
+            var leftBoundaryFaceIntersections = new Dictionary<FaceQueue, BoundaryEvent>();
+            var rightBoundaryFaceIntersections = new Dictionary<FaceQueue, BoundaryEvent>();
+
             var count = 0;
             while (!queue.Empty)
             {
@@ -145,7 +148,14 @@ namespace Sutro.StraightSkeleton
                             if (boundaryEvent.Parent.IsProcessed)
                                 break;
                             boundaryEvent.Parent.IsProcessed = true;
+                            var vertex = new Vertex(boundaryEvent.V, 0, new Line2d(), null, null);
                             step.Segments.Add(new Segment2d(boundaryEvent.Parent.Point, boundaryEvent.V));
+
+                            leftBoundaryFaceIntersections[boundaryEvent.Parent.RightFace.FaceQueue] = boundaryEvent;
+                            rightBoundaryFaceIntersections[boundaryEvent.Parent.LeftFace.FaceQueue] = boundaryEvent;
+
+                            //boundaryEvent.Parent.RightFace.AddPush(new FaceNode(vertex));
+                            //boundaryEvent.Parent.LeftFace.AddPush(new FaceNode(vertex));
                             break;
 
                         case PickEvent pickEvent:
@@ -169,6 +179,8 @@ namespace Sutro.StraightSkeleton
                 step.ToSvg($"{svgPrefix}-{stepCount}.svg");
             }
 
+            AddBoundaryEdgesToFaces(faces, leftBoundaryFaceIntersections, rightBoundaryFaceIntersections);
+
             var skeleton = AddFacesToOutput(faces);
 
             var finalWriter = new SVGWriter();
@@ -185,6 +197,41 @@ namespace Sutro.StraightSkeleton
             _boundaryEdgeLoops.Clear();
 
             return skeleton;
+        }
+
+        private void AddBoundaryEdgesToFaces(List<FaceQueue> faces, Dictionary<FaceQueue, BoundaryEvent> leftBoundaryFaceIntersections, Dictionary<FaceQueue, BoundaryEvent> rightBoundaryFaceIntersections)
+        {
+            foreach (var face in faces.Where(f => leftBoundaryFaceIntersections.ContainsKey(f) && rightBoundaryFaceIntersections.ContainsKey(f)))
+            {
+                var left = leftBoundaryFaceIntersections[face];
+                var right = rightBoundaryFaceIntersections[face];
+
+                var node = face.First;
+                while (node.Next != null)
+                {
+                    node = node.Next;
+                }
+
+                var faceNode = node as FaceNode;
+                if (faceNode != null && right.Parent != faceNode.Vertex)
+                    throw new Exception();
+
+                var newFaceNode = new FaceNode(new Vertex(right.V, 0, new Line2d(), null, null));
+                faceNode.AddPush(newFaceNode);
+                faceNode = newFaceNode;
+                var boundaryEdge = right.BoundaryEdge;
+
+                while (left.BoundaryEdge != boundaryEdge)
+                {
+                    newFaceNode = new FaceNode(new Vertex(boundaryEdge.Segment.P0, 0, new Line2d(), null, null));
+                    faceNode.AddPush(newFaceNode);
+                    faceNode = newFaceNode;
+
+                    boundaryEdge = boundaryEdge.Previous as BoundaryEdge;
+                }
+
+                faceNode.AddPush(new FaceNode(new Vertex(left.V, 0, new Line2d(), null, null)));
+            }
         }
 
         internal static bool EdgeBehindBisector(Line2d bisector, LineLinear2d edge)
@@ -461,7 +508,7 @@ namespace Sutro.StraightSkeleton
 
                     if (intersection.Result == IntersectionResult.Intersects)
                     {
-                        yield return new BoundaryEvent(intersection.Point, intersection.Parameter + vertex.Distance, vertex);
+                        yield return new BoundaryEvent(intersection.Point, intersection.Parameter + vertex.Distance, vertex, boundaryEdge);
                     }
                 }
             }
@@ -1062,7 +1109,7 @@ namespace Sutro.StraightSkeleton
             foreach (var vertex in lav.Iterate())
             {
                 var next = vertex.Next as Vertex;
-                // create face on right site of vertex
+                // create face on right side of vertex
                 var rightFace = new FaceNode(vertex);
 
                 var faceQueue = new FaceQueue();
@@ -1072,7 +1119,7 @@ namespace Sutro.StraightSkeleton
                 faces.Add(faceQueue);
                 vertex.RightFace = rightFace;
 
-                // create face on left site of next vertex
+                // create face on left side of next vertex
                 var leftFace = new FaceNode(next);
                 rightFace.AddPush(leftFace);
                 next.LeftFace = leftFace;
