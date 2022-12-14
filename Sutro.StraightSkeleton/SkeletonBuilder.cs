@@ -213,24 +213,27 @@ namespace Sutro.StraightSkeleton
                 }
 
                 var faceNode = node as FaceNode;
+                var seedLine = new Line2d(faceNode.Vertex.PreviousEdge.Begin,(faceNode.Vertex.PreviousEdge.End - faceNode.Vertex.PreviousEdge.Begin).Normalized);
+
                 if (faceNode != null && right.Parent != faceNode.Vertex)
                     throw new Exception();
 
-                var newFaceNode = new FaceNode(new Vertex(right.V, 0, new Line2d(), null, null));
+                var newFaceNode = new FaceNode(new Vertex(right.V, right.Distance, new Line2d(), null, null));
                 faceNode.AddPush(newFaceNode);
                 faceNode = newFaceNode;
                 var boundaryEdge = right.BoundaryEdge;
 
                 while (left.BoundaryEdge != boundaryEdge)
                 {
-                    newFaceNode = new FaceNode(new Vertex(boundaryEdge.Segment.P0, 0, new Line2d(), null, null));
+                    double distance = Math.Sqrt(seedLine.DistanceSquared(boundaryEdge.Segment.P0));
+                    newFaceNode = new FaceNode(new Vertex(boundaryEdge.Segment.P0, distance, new Line2d(), null, null));
                     faceNode.AddPush(newFaceNode);
                     faceNode = newFaceNode;
 
                     boundaryEdge = boundaryEdge.Previous as BoundaryEdge;
                 }
 
-                faceNode.AddPush(new FaceNode(new Vertex(left.V, 0, new Line2d(), null, null)));
+                faceNode.AddPush(new FaceNode(new Vertex(left.V, left.Distance, new Line2d(), null, null)));
             }
         }
 
