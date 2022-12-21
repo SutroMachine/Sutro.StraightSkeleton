@@ -84,11 +84,19 @@ namespace Sutro.StraightSkeleton
             return Build(gpoly);
         }
 
-        /// <summary> Creates straight skeleton for given polygon with holes. </summary>
         public Skeleton Build(GeneralPolygon2d gpoly, string svgPrefix = "")
         {
-            ValidateGeneralPolygon(gpoly);
-            gpoly.EnforceCounterClockwise();
+            return Build(new List<GeneralPolygon2d>(new[] { gpoly }));
+        }
+
+        /// <summary> Creates straight skeleton for given polygon with holes. </summary>
+        public Skeleton Build(List<GeneralPolygon2d> gpolys, string svgPrefix = "")
+        {
+            foreach (var gpoly in gpolys)
+            {
+                ValidateGeneralPolygon(gpoly);
+                gpoly.EnforceCounterClockwise();
+            }
 
             var queue = new PriorityQueue<SkeletonEvent>(3, new SkeletonEventDistanceComparer());
             var sLav = new HashSet<CircularList<Vertex>>();
@@ -104,11 +112,14 @@ namespace Sutro.StraightSkeleton
                 Segments = new List<Segment2d>(),
             };
 
-            InitSlav(gpoly.Outer, sLav, edges, faces);
-
-            foreach (var inner in gpoly.Holes)
+            foreach (var gpoly in gpolys)
             {
-                InitSlav(inner, sLav, edges, faces);
+                InitSlav(gpoly.Outer, sLav, edges, faces);
+
+                foreach (var inner in gpoly.Holes)
+                {
+                    InitSlav(inner, sLav, edges, faces);
+                }
             }
 
             InitEvents(sLav, queue, edges);

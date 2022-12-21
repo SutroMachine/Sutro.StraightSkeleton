@@ -9,12 +9,10 @@ namespace Sutro.StraightSkeleton
 {
     public class OffsetSeed
     {
-        private List<List<Cell>> groupedCells;
         private List<Cell> _cells;
 
         public OffsetSeed(List<List<Cell>> groupedCells)
         {
-            this.groupedCells = groupedCells;
         }
 
         public OffsetSeed(List<Cell> cells)

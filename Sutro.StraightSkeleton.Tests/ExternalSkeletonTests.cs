@@ -47,6 +47,29 @@ namespace Sutro.StraightSkeleton.Tests
             var sk = new SkeletonBuilder().Build(outer, "BowTieInternal");
         }
 
+        [TestMethod]
+        public void ChannelOverhang()
+        {
+            var sample = SampleGeometryLibrary.ChannelOverhang1();
+
+            var svgWriter = new SVGWriter();
+            foreach (var gpoly in sample.PreviousLayer)
+            {
+                svgWriter.AddPolygon(gpoly.Outer, SVGWriter.Style.Filled("cyan", "cyan", strokeWidth: 0.05f, opacity: 0.1f));
+            }
+
+            foreach (var gpoly in sample.CurrentLayer)
+            {
+                svgWriter.AddPolygon(gpoly.Outer, SVGWriter.Style.Filled("black", "black", strokeWidth: 0.05f, opacity: 0.1f));
+            }
+
+            svgWriter.Write("ChannelOverhang.svg");
+
+            var sk = new ExternalSkeletonBuilder()
+                .AddBoundary(sample.CurrentLayer[0].Outer)
+                .Build(sample.PreviousLayer, "ChannelOverhang");
+        }
+
         private static Polygon2d MakeBowTie()
         {
             return new Polygon2d(new Vector2d[] {
