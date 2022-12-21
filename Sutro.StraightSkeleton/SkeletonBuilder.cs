@@ -186,6 +186,8 @@ namespace Sutro.StraightSkeleton
             var finalWriter = new SVGWriter();
             var bounds = new AxisAlignedBox2d();
 
+            skeleton.AddToSVG(finalWriter, ref bounds);
+
             step.AddEdgesToSvg(finalWriter, ref bounds);
             step.AddBoundaryEdgeToSvg(finalWriter, ref bounds);
             step.AddSegmentsToSvg(finalWriter);
@@ -193,10 +195,38 @@ namespace Sutro.StraightSkeleton
             skeleton.AddToSVG(finalWriter, ref bounds);
             finalWriter.Write($"{svgPrefix}-FINAL.svg");
 
+            var offsetSeed = OffsetSeed.FromFaceQueues(faces);
+            MakeAndExportOffsets(skeleton, offsetSeed, step, $"{svgPrefix}-OFFSETS.svg");
+
             // Clean up for next usage
             _boundaryEdgeLoops.Clear();
 
             return skeleton;
+        }
+
+        private static void MakeAndExportOffsets(Skeleton skeleton, OffsetSeed offsetSeed, SkeletonStep step, string filename)
+        {
+            var svg = new SVGWriter();
+            var bounds = new AxisAlignedBox2d();
+            step.AddEdgesToSvg(svg, ref bounds);
+            step.AddBoundaryEdgeToSvg(svg, ref bounds);
+            skeleton.AddToSVG(svg, ref bounds);
+
+            int nOffsets = 15;
+            double incrOffset = offsetSeed.MaxDistance / (nOffsets + 1);
+
+            for (int i = 1; i < nOffsets; i++)
+            {
+                double offset = i * incrOffset;
+
+                var segs = offsetSeed.MakeOffset(offset);
+                foreach (var seg in segs)
+                {
+                    svg.AddLine(seg, SVGWriter.Style.Outline("green", 0.05f));
+                }
+            }
+
+            svg.Write(filename);
         }
 
         private void AddBoundaryEdgesToFaces(List<FaceQueue> faces, Dictionary<FaceQueue, BoundaryEvent> leftBoundaryFaceIntersections, Dictionary<FaceQueue, BoundaryEvent> rightBoundaryFaceIntersections)
@@ -213,12 +243,15 @@ namespace Sutro.StraightSkeleton
                 }
 
                 var faceNode = node as FaceNode;
-                var seedLine = new Line2d(faceNode.Vertex.PreviousEdge.Begin,(faceNode.Vertex.PreviousEdge.End - faceNode.Vertex.PreviousEdge.Begin).Normalized);
+                var seedLine = new Line2d(faceNode.Vertex.PreviousEdge.Begin, (faceNode.Vertex.PreviousEdge.End - faceNode.Vertex.PreviousEdge.Begin).Normalized);
 
                 if (faceNode != null && right.Parent != faceNode.Vertex)
                     throw new Exception();
 
-                var newFaceNode = new FaceNode(new Vertex(right.V, right.Distance, new Line2d(), null, null));
+                // Should update BoundaryEvent to have the proper distance, using velocity!
+                double distanceRight = Math.Sqrt(seedLine.DistanceSquared(right.V));
+
+                var newFaceNode = new FaceNode(new Vertex(right.V, distanceRight, new Line2d(), null, null));
                 faceNode.AddPush(newFaceNode);
                 faceNode = newFaceNode;
                 var boundaryEdge = right.BoundaryEdge;
@@ -233,7 +266,10 @@ namespace Sutro.StraightSkeleton
                     boundaryEdge = boundaryEdge.Previous as BoundaryEdge;
                 }
 
-                faceNode.AddPush(new FaceNode(new Vertex(left.V, left.Distance, new Line2d(), null, null)));
+                // Should update BoundaryEvent to have the proper distance, using velocity!
+                double distanceLeft = Math.Sqrt(seedLine.DistanceSquared(left.V));
+
+                faceNode.AddPush(new FaceNode(new Vertex(left.V, distanceLeft, new Line2d(), null, null)));
             }
         }
 

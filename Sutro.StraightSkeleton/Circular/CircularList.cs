@@ -88,6 +88,17 @@ namespace Sutro.StraightSkeleton.Circular
             }
         }
 
+        public T Last()
+        {
+            var current = _first;
+            var i = 0;
+            while (current.Next != null)
+            {
+                current = current.Next as T;
+            }
+            return current;
+        }
+
         public void Remove(CircularNode node)
         {
             if (node.List != this)
