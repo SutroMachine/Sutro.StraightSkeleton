@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using g3;
+using Sutro.StraightSkeleton.Chain;
 using Sutro.StraightSkeleton.Circular;
 using Sutro.StraightSkeleton.Events;
 using Sutro.StraightSkeleton.Events.Chains;
@@ -10,28 +11,6 @@ using Sutro.StraightSkeleton.Primitives;
 
 namespace Sutro.StraightSkeleton
 {
-    public class ExternalSkeletonBuilder : SkeletonBuilderBase
-    {
-        protected override Line2d CalcInitialBisector(Vector2d point, Edge edgeBefore, Edge edgeAfter)
-        {
-            // Reverse direction to make the ray external instead of internal
-            return new Line2d(point, -CalcVectorBisector(edgeBefore.Norm, edgeAfter.Norm));
-        }
-
-        public Skeleton Build(GeneralPolygon2d gpoly, GeneralPolygon2d boundary)
-        {
-            return Build(gpoly);
-        }
-    }
-
-    public class SkeletonBuilder : SkeletonBuilderBase
-    {
-        protected override Line2d CalcInitialBisector(Vector2d point, Edge edgeBefore, Edge edgeAfter)
-        {
-            return new Line2d(point, CalcVectorBisector(edgeBefore.Norm, edgeAfter.Norm));
-        }
-    }
-
     /// <summary>
     ///     Straight skeleton algorithm implementation. Base on highly modified Petr
     ///     Felkel and Stepan Obdrzalek algorithm.
@@ -40,21 +19,34 @@ namespace Sutro.StraightSkeleton
     ///     This is .NET adopted port of java implementation from kendzi-straight-skeleton library.
     /// </remarks>
     ///
-    public abstract class SkeletonBuilderBase
+    public class SkeletonBuilder
     {
-        internal readonly List<CircularList<BoundaryEdge>> _boundaryEdgeLoops = new List<CircularList<BoundaryEdge>>();
+        internal readonly List<BoundaryChain> _boundaryChains = new();
 
-        public SkeletonBuilderBase AddBoundary(Polygon2d boundary)
+        public void Reset()
         {
-            var boundaryLoop = new CircularList<BoundaryEdge>();
+            _boundaryChains.Clear();
+        }
 
-            var size = boundary.VertexCount;
-            for (var i = 0; i < size; i++)
+        public SkeletonBuilder AddBoundary(PolyLine2d polyline)
+        {
+            _boundaryChains.Add(new BoundaryChain(polyline.Vertices, BoundaryEdge.FromVectors, false));
+            return this;
+        }
+
+        public SkeletonBuilder AddBoundary(Polygon2d poly)
+        {
+            _boundaryChains.Add(new BoundaryChain(poly.Vertices, BoundaryEdge.FromVectors, true));
+            return this;
+        }
+
+        public SkeletonBuilder AddBoundary(GeneralPolygon2d gpoly)
+        {
+            _boundaryChains.Add(new BoundaryChain(gpoly.Outer.Vertices, BoundaryEdge.FromVectors, true));
+            foreach (var hole in gpoly.Holes)
             {
-                var j = (i + 1) % size;
-                boundaryLoop.AddLast(new BoundaryEdge(boundary[i], boundary[j]));
+                _boundaryChains.Add(new BoundaryChain(hole.Vertices, BoundaryEdge.FromVectors, true));
             }
-            _boundaryEdgeLoops.Add(boundaryLoop);
             return this;
         }
 
@@ -108,17 +100,17 @@ namespace Sutro.StraightSkeleton
                 EventQueue = queue,
                 ActiveVertices = sLav,
                 Edges = edges,
-                Boundaries = _boundaryEdgeLoops,
+                Boundaries = _boundaryChains,
                 Segments = new List<Segment2d>(),
             };
 
             foreach (var gpoly in gpolys)
             {
-                InitSlav(gpoly.Outer, sLav, edges, faces);
+                InitSlav(gpoly.Outer, sLav, edges, faces, false);
 
                 foreach (var inner in gpoly.Holes)
                 {
-                    InitSlav(inner, sLav, edges, faces);
+                    InitSlav(inner, sLav, edges, faces, false);
                 }
             }
 
@@ -206,11 +198,11 @@ namespace Sutro.StraightSkeleton
             skeleton.AddToSVG(finalWriter, ref bounds);
             finalWriter.Write($"{svgPrefix}-FINAL.svg");
 
-            var offsetSeed = OffsetSeed.FromFaceQueues(faces);
-            MakeAndExportOffsets(skeleton, offsetSeed, step, $"{svgPrefix}-OFFSETS.svg");
+            //var offsetSeed = OffsetSeed.FromFaceQueues(faces);
+            //MakeAndExportOffsets(skeleton, offsetSeed, step, $"{svgPrefix}-OFFSETS.svg");
 
             // Clean up for next usage
-            _boundaryEdgeLoops.Clear();
+            Reset();
 
             return skeleton;
         }
@@ -269,12 +261,12 @@ namespace Sutro.StraightSkeleton
 
                 while (left.BoundaryEdge != boundaryEdge)
                 {
-                    double distance = Math.Sqrt(seedLine.DistanceSquared(boundaryEdge.Segment.P0));
-                    newFaceNode = new FaceNode(new Vertex(boundaryEdge.Segment.P0, distance, new Line2d(), null, null));
+                    double distance = Math.Sqrt(seedLine.DistanceSquared(boundaryEdge.Value.Segment.P0));
+                    newFaceNode = new FaceNode(new Vertex(boundaryEdge.Value.Segment.P0, distance, new Line2d(), null, null));
                     faceNode.AddPush(newFaceNode);
                     faceNode = newFaceNode;
 
-                    boundaryEdge = boundaryEdge.Previous as BoundaryEdge;
+                    boundaryEdge = boundaryEdge.PreviousEdge;
                 }
 
                 // Should update BoundaryEvent to have the proper distance, using velocity!
@@ -544,16 +536,16 @@ namespace Sutro.StraightSkeleton
 
         private IEnumerable<BoundaryEvent> ComputeBoundaryEvents(Vertex vertex)
         {
-            foreach (var loop in _boundaryEdgeLoops)
+            foreach (var loop in _boundaryChains)
             {
-                foreach (var boundaryEdge in loop.Iterate())
+                foreach (var boundaryEdge in loop.EnumerateEdges())
                 {
                     // check if edge is behind bisector
-                    if (EdgeBehindBisector(vertex.Bisector, boundaryEdge.LineLinear2d))
+                    if (EdgeBehindBisector(vertex.Bisector, boundaryEdge.Value.LineLinear2d))
                         continue;
 
                     // compute the coordinates of the intersection point
-                    var intersection = new IntrLine2Segment2(vertex.Bisector, boundaryEdge.Segment);
+                    var intersection = new IntrLine2Segment2(vertex.Bisector, boundaryEdge.Value.Segment);
                     intersection.Compute();
 
                     if (intersection.Result == IntersectionResult.Intersects)
@@ -1061,7 +1053,7 @@ namespace Sutro.StraightSkeleton
 
                 if (@event is BoundaryEvent boundaryEvent)
                 {
-                    // TODO: Add smarter handling for boundary events
+                    // TODO: Add smarter handling for poly events
                     ret.Add(@event);
                     continue;
                 }
@@ -1125,7 +1117,7 @@ namespace Sutro.StraightSkeleton
         }
 
         private void InitSlav(Polygon2d polygon, HashSet<CircularList<Vertex>> sLav,
-            List<Edge> edges, List<FaceQueue> faces)
+            List<Edge> edges, List<FaceQueue> faces, bool reverse)
         {
             var edgesList = new CircularList<Edge>();
 
@@ -1139,7 +1131,7 @@ namespace Sutro.StraightSkeleton
             foreach (var edge in edgesList.Iterate())
             {
                 var nextEdge = edge.Next as Edge;
-                var bisector = CalcInitialBisector(edge.End, edge, nextEdge);
+                var bisector = CalcInitialBisector(edge.End, edge, nextEdge, reverse);
 
                 edge.BisectorNext = bisector;
                 nextEdge.BisectorPrevious = bisector;
@@ -1176,7 +1168,13 @@ namespace Sutro.StraightSkeleton
             }
         }
 
-        protected abstract Line2d CalcInitialBisector(Vector2d point, Edge edgeBefore, Edge edgeAfter);
+        protected Line2d CalcInitialBisector(Vector2d point, Edge edgeBefore, Edge edgeAfter, bool reverse)
+        {
+            var bisector = CalcVectorBisector(edgeBefore.Norm, edgeAfter.Norm);
+
+            // Reverse direction to make the ray external instead of internal
+            return new Line2d(point, reverse ? -bisector : bisector);
+        }
 
         private static bool IsEventInGroup(HashSet<Vertex> parentGroup, SkeletonEvent @event)
         {
@@ -1246,7 +1244,7 @@ namespace Sutro.StraightSkeleton
             var nextVertex = @event.Chain.NextVertex;
             nextVertex.IsProcessed = true;
 
-            var bisector = CalcInitialBisector(center, previousVertex.PreviousEdge, nextVertex.NextEdge);
+            var bisector = CalcInitialBisector(center, previousVertex.PreviousEdge, nextVertex.NextEdge, false);
             var edgeVertex = new Vertex(center, @event.Distance, bisector, previousVertex.PreviousEdge,
                 nextVertex.NextEdge);
 

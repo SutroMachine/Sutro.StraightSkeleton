@@ -13,7 +13,7 @@ namespace Sutro.StraightSkeleton.Tests
             var polygon = Polygon2d.MakeRectangle(Vector2d.Zero, 20, 40);
             var boundary = Polygon2d.MakeRectangle(new Vector2d(1, 4), 30, 54);
 
-            var sk = new ExternalSkeletonBuilder()
+            var sk = new SkeletonBuilder()
                 .AddBoundary(boundary)
                 .Build(new GeneralPolygon2d(polygon), "RectangleExternal");
         }
@@ -31,7 +31,7 @@ namespace Sutro.StraightSkeleton.Tests
                 new Vector2d(-15, 20),
             });
 
-            var sk = new ExternalSkeletonBuilder()
+            var sk = new SkeletonBuilder()
                 .AddBoundary(boundary)
                 .Build(new GeneralPolygon2d(bowtie), "BowTieExternal");
         }
@@ -65,7 +65,7 @@ namespace Sutro.StraightSkeleton.Tests
 
             svgWriter.Write("ChannelOverhang.svg");
 
-            var sk = new ExternalSkeletonBuilder()
+            var sk = new SkeletonBuilder()
                 .AddBoundary(sample.CurrentLayer[0].Outer)
                 .Build(sample.PreviousLayer, "ChannelOverhang");
         }

@@ -1,12 +1,17 @@
 ﻿using g3;
 using Sutro.StraightSkeleton.Primitives;
 
-namespace Sutro.StraightSkeleton.Circular
+namespace Sutro.StraightSkeleton.Chain
 {
-    internal class BoundaryEdge : CircularNode
+    internal class BoundaryEdge
     {
         public Segment2d Segment { get; }
         public LineLinear2d LineLinear2d { get; }
+
+        public static BoundaryEdge FromVectors(Vector2d begin, Vector2d end)
+        {
+            return new BoundaryEdge(begin, end);
+        }
 
         public BoundaryEdge(Vector2d begin, Vector2d end)
         {

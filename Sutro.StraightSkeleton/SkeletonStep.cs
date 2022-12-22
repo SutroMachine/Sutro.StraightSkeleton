@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using g3;
+using Sutro.StraightSkeleton.Chain;
 using Sutro.StraightSkeleton.Circular;
 using Sutro.StraightSkeleton.Events;
 using Sutro.StraightSkeleton.Primitives;
@@ -13,7 +14,7 @@ namespace Sutro.StraightSkeleton
         public PriorityQueue<SkeletonEvent> EventQueue { get; set; }
         public HashSet<CircularList<Vertex>> ActiveVertices { get; set; }
         public List<Edge> Edges { get; set; }
-        public List<CircularList<BoundaryEdge>> Boundaries { get; set; }
+        public List<BoundaryChain> Boundaries { get; set; }
         public List<Segment2d> Segments { get; set; }
 
         private readonly float lineWidth = 0.05f;
@@ -79,12 +80,11 @@ namespace Sutro.StraightSkeleton
             var boundaryEdgeStyle = SVGWriter.Style.Outline("purple", lineWidth);
             var boundaryEdgePointStyle = SVGWriter.Style.Filled("purple");
 
-            foreach (var edge in Boundaries.SelectMany(boundary => boundary.Iterate().Select(e => e.Segment)))
+            foreach (var node in Boundaries.SelectMany(boundary => boundary.EnumerateNodes()))
             {
-                bounds.Contain(edge.P0);
-                bounds.Contain(edge.P1);
-                writer.AddLine(edge, boundaryEdgeStyle);
-                writer.AddCircle(new Circle2d(edge.P0, 0.15f), boundaryEdgePointStyle);
+                bounds.Contain(node.Value);
+                writer.AddLine(node.NextEdge.Value.Segment, boundaryEdgeStyle);
+                writer.AddCircle(new Circle2d(node.Value, 0.15f), boundaryEdgePointStyle);
             }
         }
 
