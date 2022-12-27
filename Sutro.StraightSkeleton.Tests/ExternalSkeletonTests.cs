@@ -15,7 +15,7 @@ namespace Sutro.StraightSkeleton.Tests
 
             var sk = new SkeletonBuilder()
                 .AddBoundary(boundary)
-                .Build(new GeneralPolygon2d(polygon), "RectangleExternal");
+                .Build(new GeneralPolygon2d(polygon), "RectangleExternal", external: true);
         }
 
         [TestMethod]
@@ -33,7 +33,7 @@ namespace Sutro.StraightSkeleton.Tests
 
             var sk = new SkeletonBuilder()
                 .AddBoundary(boundary)
-                .Build(new GeneralPolygon2d(bowtie), "BowTieExternal");
+                .Build(new GeneralPolygon2d(bowtie), "BowTieExternal", external: true);
         }
 
         [TestMethod]
@@ -48,26 +48,57 @@ namespace Sutro.StraightSkeleton.Tests
         }
 
         [TestMethod]
+        public void MultipleWavefrontSources()
+        {
+            var source1 = new GeneralPolygon2d(Polygon2d.MakeRectangle(new Vector2d(0, 10), 6, 8));
+            var source2 = new GeneralPolygon2d(Polygon2d.MakeRectangle(new Vector2d(0, -10), 6, 8));
+            var boundary = new GeneralPolygon2d(Polygon2d.MakeRectangle(new Vector2d(0, 0), 10, 40));
+
+            var sk = new SkeletonBuilder().AddBoundary(boundary).Build(
+                new List<GeneralPolygon2d>() { source1, source2}, 
+                "MultipleWavefrontSources", external: true);
+        }
+
+
+        [TestMethod]
+        public void MultipleWavefrontInternal()
+        {
+            var source1 = Polygon2d.MakeRectangle(new Vector2d(0, 10), 6, 8);
+            var source2 = Polygon2d.MakeRectangle(new Vector2d(0, -10), 6, 8);
+            var gpoly = new GeneralPolygon2d(Polygon2d.MakeRectangle(new Vector2d(0, 0), 100, 100));
+
+            source1.Reverse();
+            source2.Reverse();
+
+            gpoly.AddHole(source1);
+            gpoly.AddHole(source2);
+
+            var sk = new SkeletonBuilder().Build(gpoly,
+                "MultipleWavefrontInternal", external: false);
+        }
+
+
+        [TestMethod]
         public void ChannelOverhang()
         {
             var sample = SampleGeometryLibrary.ChannelOverhang1();
 
-            var svgWriter = new SVGWriter();
-            foreach (var gpoly in sample.PreviousLayer)
-            {
-                svgWriter.AddPolygon(gpoly.Outer, SVGWriter.Style.Filled("cyan", "cyan", strokeWidth: 0.05f, opacity: 0.1f));
-            }
-
-            foreach (var gpoly in sample.CurrentLayer)
-            {
-                svgWriter.AddPolygon(gpoly.Outer, SVGWriter.Style.Filled("black", "black", strokeWidth: 0.05f, opacity: 0.1f));
-            }
-
-            svgWriter.Write("ChannelOverhang.svg");
-
             var sk = new SkeletonBuilder()
                 .AddBoundary(sample.CurrentLayer[0].Outer)
-                .Build(sample.PreviousLayer, "ChannelOverhang");
+                .Build(sample.PreviousLayer, "ChannelOverhang", external: true);
+        }
+
+        [TestMethod]
+        public void ChannelOverhangInternal()
+        {
+            var sample = SampleGeometryLibrary.ChannelOverhangInternal();
+
+            var svgWriter = new SVGWriter();
+            svgWriter.AddPolygon(sample, SVGWriter.Style.Filled("yellow", "black", 0.05f, 0.25f));
+            svgWriter.Write("ChannelOverhangInternal.svg");
+
+            var sk = new SkeletonBuilder()
+                .Build(sample, "ChannelOverhangInternal", external: false);
         }
 
         private static Polygon2d MakeBowTie()

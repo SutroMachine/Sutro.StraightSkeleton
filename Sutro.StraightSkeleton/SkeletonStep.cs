@@ -12,7 +12,7 @@ namespace Sutro.StraightSkeleton
     internal class SkeletonStep
     {
         public PriorityQueue<SkeletonEvent> EventQueue { get; set; }
-        public HashSet<CircularList<Vertex>> ActiveVertices { get; set; }
+        public HashSet<CircularList<Vertex>> Wavefronts { get; set; }
         public List<Edge> Edges { get; set; }
         public List<BoundaryChain> Boundaries { get; set; }
         public List<Segment2d> Segments { get; set; }
@@ -42,7 +42,7 @@ namespace Sutro.StraightSkeleton
 
             var activeVertexPointStyle = SVGWriter.Style.Outline("red", lineWidth);
 
-            foreach (var vertex in ActiveVertices.SelectMany(list => list.Iterate()))
+            foreach (var vertex in Wavefronts.SelectMany(list => list.Iterate()))
             {
                 writer.AddCircle(new Circle2d(vertex.Point, pointDiam * 2), activeVertexPointStyle);
                 writer.AddLine(new Segment2d(vertex.Point, vertex.Bisector.PointAt(2)), activeVertexPointStyle);

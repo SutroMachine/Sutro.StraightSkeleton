@@ -8,7 +8,7 @@ namespace Sutro.StraightSkeleton.Tests
     public class SkeletonLevelEventsTest
     {
         [TestMethod]
-        public void Skeleton_multiEdgeEvent()
+        public void SkeletonTest_multiEdgeEvent()
         {
             var outer = new List<Vector2d>
             {
@@ -27,13 +27,13 @@ namespace Sutro.StraightSkeleton.Tests
             };
             expected.AddRange(outer);
 
-            var sk = new SkeletonBuilder().Build(outer, null);
+            var sk = new SkeletonBuilder().Build(outer, "SkeletonTest_multiEdgeEvent", false);
 
             SkeletonTestUtil.AssertExpectedPoints(expected, SkeletonTestUtil.GetFacePoints(sk));
         }
 
         [TestMethod]
-        public void Skeleton_pickEvent()
+        public void SkeletonTest_pickEvent()
         {
             var outer = new List<Vector2d>
             {
@@ -48,7 +48,7 @@ namespace Sutro.StraightSkeleton.Tests
             };
             expected.AddRange(outer);
 
-            var sk = new SkeletonBuilder().Build(outer, null);
+            var sk = new SkeletonBuilder().Build(outer, "SkeletonTest_pickEvent", false);
 
             SkeletonTestUtil.AssertExpectedPoints(expected, SkeletonTestUtil.GetFacePoints(sk));
         }
@@ -76,7 +76,7 @@ namespace Sutro.StraightSkeleton.Tests
             expected.Add(new Vector2d(0, 0));
             expected.Add(new Vector2d(0, 2));
 
-            var sk = new SkeletonBuilder().Build(outer, null);
+            var sk = new SkeletonBuilder().Build(outer, "Skeleton_crossT1", false);
 
             SkeletonTestUtil.AssertExpectedPoints(expected, SkeletonTestUtil.GetFacePoints(sk));
         }
@@ -109,7 +109,7 @@ namespace Sutro.StraightSkeleton.Tests
                 new Vector2d(-2, 0)
             };
 
-            var sk = new SkeletonBuilder().Build(outer, null);
+            var sk = new SkeletonBuilder().Build(outer, "SkeletonTest_cross_X1", false);
 
             SkeletonTestUtil.AssertExpectedPoints(expected, SkeletonTestUtil.GetFacePoints(sk));
         }
@@ -135,7 +135,7 @@ namespace Sutro.StraightSkeleton.Tests
                 new Vector2d(3.0000000000000004, -1.854101966249685)
             };
 
-            var sk = new SkeletonBuilder().Build(outer, null);
+            var sk = new SkeletonBuilder().Build(outer, "SkeletonTest_double_split", false);
 
             SkeletonTestUtil.AssertExpectedPoints(expected, SkeletonTestUtil.GetFacePoints(sk));
         }
@@ -163,7 +163,7 @@ namespace Sutro.StraightSkeleton.Tests
                 new Vector2d(3.0000000000000004, -1.854101966249685)
             };
 
-            var sk = new SkeletonBuilder().Build(outer, null);
+            var sk = new SkeletonBuilder().Build(outer, "SkeletonTest_double_split2", false);
 
             SkeletonTestUtil.AssertExpectedPoints(expected, SkeletonTestUtil.GetFacePoints(sk));
 

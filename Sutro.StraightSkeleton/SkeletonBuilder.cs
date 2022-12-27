@@ -51,18 +51,18 @@ namespace Sutro.StraightSkeleton
         }
 
         /// <summary> Creates straight skeleton for given polygon. </summary>
-        public Skeleton Build(List<Vector2d> points)
+        public Skeleton Build(List<Vector2d> points, string svgPrefix = "", bool external = false)
         {
-            return Build(new GeneralPolygon2d(new Polygon2d(points)));
+            return Build(new GeneralPolygon2d(new Polygon2d(points)), svgPrefix, external);
         }
 
-        public Skeleton Build(Polygon2d polygon)
+        public Skeleton Build(Polygon2d polygon, string svgPrefix = "", bool external = false)
         {
-            return Build(new GeneralPolygon2d(polygon));
+            return Build(new GeneralPolygon2d(polygon), svgPrefix, external);
         }
 
         /// <summary> Creates straight skeleton for given polygon with holes. </summary>
-        public Skeleton Build(List<Vector2d> outer, List<List<Vector2d>> holes)
+        public Skeleton Build(List<Vector2d> outer, List<List<Vector2d>> holes, string svgPrefix = "", bool external = false)
         {
             var gpoly = new GeneralPolygon2d(new Polygon2d(outer));
 
@@ -73,16 +73,16 @@ namespace Sutro.StraightSkeleton
                     gpoly.AddHole(new Polygon2d(hole), bCheckContainment: false, bCheckOrientation: false);
                 }
             }
-            return Build(gpoly);
+            return Build(gpoly, svgPrefix, external);
         }
 
-        public Skeleton Build(GeneralPolygon2d gpoly, string svgPrefix = "")
+        public Skeleton Build(GeneralPolygon2d gpoly, string svgPrefix = "", bool external = false)
         {
-            return Build(new List<GeneralPolygon2d>(new[] { gpoly }));
+            return Build(new List<GeneralPolygon2d>(new[] { gpoly }), svgPrefix, external);
         }
 
         /// <summary> Creates straight skeleton for given polygon with holes. </summary>
-        public Skeleton Build(List<GeneralPolygon2d> gpolys, string svgPrefix = "")
+        public Skeleton Build(List<GeneralPolygon2d> gpolys, string svgPrefix = "", bool external = false)
         {
             foreach (var gpoly in gpolys)
             {
@@ -91,14 +91,14 @@ namespace Sutro.StraightSkeleton
             }
 
             var queue = new PriorityQueue<SkeletonEvent>(3, new SkeletonEventDistanceComparer());
-            var sLav = new HashSet<CircularList<Vertex>>();
+            var wavefronts = new HashSet<Wavefront>();
             var faces = new List<FaceQueue>();
             var edges = new List<Edge>();
 
             var step = new SkeletonStep()
             {
                 EventQueue = queue,
-                ActiveVertices = sLav,
+                Wavefronts = wavefronts,
                 Edges = edges,
                 Boundaries = _boundaryChains,
                 Segments = new List<Segment2d>(),
@@ -106,15 +106,15 @@ namespace Sutro.StraightSkeleton
 
             foreach (var gpoly in gpolys)
             {
-                InitSlav(gpoly.Outer, sLav, edges, faces, false);
+                InitializeWavefront(gpoly.Outer, wavefronts, edges, faces, external);
 
                 foreach (var inner in gpoly.Holes)
                 {
-                    InitSlav(inner, sLav, edges, faces, false);
+                    InitializeWavefront(inner, wavefronts, edges, faces, external);
                 }
             }
 
-            InitEvents(sLav, queue, edges);
+            InitEvents(wavefronts, queue, edges);
 
             int stepCount = 0;
             step.ToSvg($"{svgPrefix}-{stepCount}.svg");
@@ -144,7 +144,7 @@ namespace Sutro.StraightSkeleton
                                                                 "MultiSplitEvents for given level");
 
                         case MultiSplitEvent multiSplitEvent:
-                            MultiSplitEvent(multiSplitEvent, sLav, queue, edges, step.Segments);
+                            MultiSplitEvent(multiSplitEvent, wavefronts, queue, edges, step.Segments);
                             break;
 
                         case BoundaryEvent boundaryEvent:
@@ -162,7 +162,7 @@ namespace Sutro.StraightSkeleton
                             break;
 
                         case PickEvent pickEvent:
-                            PickEvent(pickEvent);
+                            PickEvent(pickEvent, step.Segments);
                             break;
 
                         case MultiEdgeEvent multiEdgeEvent:
@@ -174,9 +174,9 @@ namespace Sutro.StraightSkeleton
                     }
                 }
 
-                ProcessTwoNodeLavs(sLav);
+                ProcessTwoNodeLavs(wavefronts);
                 RemoveEventsUnderHeight(queue, levelHeight);
-                RemoveEmptyLav(sLav);
+                RemoveEmptyLav(wavefronts);
 
                 ++stepCount;
                 step.ToSvg($"{svgPrefix}-{stepCount}.svg");
@@ -365,7 +365,7 @@ namespace Sutro.StraightSkeleton
             return new Skeleton(edgeOutputs, distances);
         }
 
-        private static void AddMultiBackFaces(List<EdgeEvent> edgeList, Vertex edgeVertex)
+        private static void AddMultiBackFaces(List<EdgeEvent> edgeList, Vertex edgeVertex, List<Segment2d> segments)
         {
             foreach (var edgeEvent in edgeList)
             {
@@ -378,6 +378,9 @@ namespace Sutro.StraightSkeleton
                 LavUtil.RemoveFromLav(rightVertex);
 
                 AddFaceBack(edgeVertex, leftVertex, rightVertex);
+
+                segments.Add(new Segment2d(edgeEvent.V, leftVertex.Point));
+                segments.Add(new Segment2d(edgeEvent.V, rightVertex.Point));
             }
         }
 
@@ -1116,7 +1119,7 @@ namespace Sutro.StraightSkeleton
             }
         }
 
-        private void InitSlav(Polygon2d polygon, HashSet<CircularList<Vertex>> sLav,
+        private void InitializeWavefront(Polygon2d polygon, HashSet<CircularList<Vertex>> wavefronts,
             List<Edge> edges, List<FaceQueue> faces, bool reverse)
         {
             var edgesList = new CircularList<Edge>();
@@ -1138,9 +1141,13 @@ namespace Sutro.StraightSkeleton
                 edges.Add(edge);
             }
 
-            var lav = new CircularList<Vertex>();
-            sLav.Add(lav);
+            wavefronts.Add(CreateWavefront(faces, edgesList));
 
+        }
+
+        private static Wavefront CreateWavefront(List<FaceQueue> faces, CircularList<Edge> edgesList)
+        {
+            var lav = new Wavefront();
             foreach (var edge in edgesList.Iterate())
             {
                 var nextEdge = edge.Next as Edge;
@@ -1166,6 +1173,8 @@ namespace Sutro.StraightSkeleton
                 rightFace.AddPush(leftFace);
                 next.LeftFace = leftFace;
             }
+
+            return lav;
         }
 
         protected Line2d CalcInitialBisector(Vector2d point, Edge edgeBefore, Edge edgeAfter, bool reverse)
@@ -1265,7 +1274,7 @@ namespace Sutro.StraightSkeleton
             previousVertex.AddPrevious(edgeVertex);
 
             // back faces
-            AddMultiBackFaces(edgeList, edgeVertex);
+            AddMultiBackFaces(edgeList, edgeVertex, segments);
 
             ComputeEvents(edgeVertex, queue, edges);
         }
@@ -1342,7 +1351,7 @@ namespace Sutro.StraightSkeleton
             }
         }
 
-        private static void PickEvent(PickEvent @event)
+        private static void PickEvent(PickEvent @event, List<Segment2d> segments)
         {
             var center = @event.V;
             var edgeList = @event.Chain.EdgeList;
@@ -1350,7 +1359,7 @@ namespace Sutro.StraightSkeleton
             // lav will be removed so it is final vertex.
             AddMultiBackFaces(edgeList, new Vertex(center, @event.Distance,
                 new Line2d(Vector2d.MinValue, Vector2d.MinValue), null, null)
-            { IsProcessed = true });
+            { IsProcessed = true }, segments);
         }
 
         private static void ProcessTwoNodeLavs(HashSet<CircularList<Vertex>> sLav)

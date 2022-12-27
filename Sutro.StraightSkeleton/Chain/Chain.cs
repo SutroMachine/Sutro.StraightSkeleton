@@ -66,6 +66,7 @@ namespace Sutro.StraightSkeleton.Chain
         public Chain(IEnumerable<TNode> nodes, Func<TNode, TNode, TEdge> edgeFactory, bool close = false)
         {
             var enumerator = nodes.GetEnumerator();
+            enumerator.MoveNext();
             First = new Node(enumerator.Current);
             enumerator.MoveNext();
             var currentNode = First;
