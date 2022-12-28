@@ -19,6 +19,14 @@ namespace Sutro.StraightSkeleton.Tests
         }
 
         [TestMethod]
+        public void GrassfireInternal()
+        {
+            var polygon = SampleGeometryLibrary.MakeGrassFireLogo();
+
+            var sk = new SkeletonBuilder()
+                .Build(polygon, "Grassfire", external: false);
+        }
+        [TestMethod]
         public void BowTieExternal()
         {
             var bowtie = MakeBowTie();

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using g3;
 using Sutro.StraightSkeleton.Chain;
 using Sutro.StraightSkeleton.Circular;
@@ -166,7 +167,7 @@ namespace Sutro.StraightSkeleton
                             break;
 
                         case MultiEdgeEvent multiEdgeEvent:
-                            MultiEdgeEvent(multiEdgeEvent, queue, edges, step.Segments);
+                            MultiEdgeEvent(multiEdgeEvent, queue, edges, step.Segments, external);
                             break;
 
                         default:
@@ -676,12 +677,11 @@ namespace Sutro.StraightSkeleton
             return distance1 < distance2 ? distance1 : distance2;
         }
 
-        private static void ComputeEdgeEvents(Vertex previousVertex, Vertex nextVertex,
-            PriorityQueue<SkeletonEvent> queue)
+        private static IEnumerable<EdgeEvent> ComputeEdgeEvents(Vertex previousVertex, Vertex nextVertex)
         {
             var point = ComputeIntersectionBisectors(previousVertex, nextVertex);
             if (point != Vector2d.MinValue)
-                queue.Add(CreateEdgeEvent(point, previousVertex, nextVertex));
+                 yield return CreateEdgeEvent(point, previousVertex, nextVertex);
         }
 
         private void ComputeEvents(Vertex vertex, PriorityQueue<SkeletonEvent> queue, List<Edge> edges)
@@ -907,7 +907,7 @@ namespace Sutro.StraightSkeleton
             return edgeList;
         }
 
-        private static SkeletonEvent CreateEdgeEvent(Vector2d point, Vertex previousVertex, Vertex nextVertex)
+        private static EdgeEvent CreateEdgeEvent(Vector2d point, Vertex previousVertex, Vertex nextVertex)
         {
             return new EdgeEvent(point, CalcDistance(point, previousVertex.NextEdge), previousVertex, nextVertex);
         }
@@ -1114,7 +1114,7 @@ namespace Sutro.StraightSkeleton
                 foreach (var vertex in lav.Iterate())
                 {
                     var nextVertex = vertex.Next as Vertex;
-                    ComputeEdgeEvents(vertex, nextVertex, queue);
+                    queue.AddRange(ComputeEdgeEvents(vertex, nextVertex));
                 }
             }
         }
@@ -1207,7 +1207,12 @@ namespace Sutro.StraightSkeleton
         private static List<SkeletonEvent> LoadAndGroupLevelEvents(PriorityQueue<SkeletonEvent> queue)
         {
             var levelEvents = LoadLevelEvents(queue);
-            return GroupLevelEvents(levelEvents);
+            var groupedEvents = GroupLevelEvents(levelEvents);
+            
+            // Reversing this list magically fixes some bugs, although it's not obvious why! Sketchy.
+            groupedEvents.Reverse();
+            
+            return groupedEvents;
         }
 
         /// <summary> Loads all not obsolete event which are on one level. As level height is taken epsilon. </summary>
@@ -1242,7 +1247,7 @@ namespace Sutro.StraightSkeleton
         }
 
         private void MultiEdgeEvent(MultiEdgeEvent @event,
-            PriorityQueue<SkeletonEvent> queue, List<Edge> edges, List<Segment2d> segments)
+            PriorityQueue<SkeletonEvent> queue, List<Edge> edges, List<Segment2d> segments, bool external)
         {
             var center = @event.V;
             var edgeList = @event.Chain.EdgeList;
@@ -1253,7 +1258,7 @@ namespace Sutro.StraightSkeleton
             var nextVertex = @event.Chain.NextVertex;
             nextVertex.IsProcessed = true;
 
-            var bisector = CalcInitialBisector(center, previousVertex.PreviousEdge, nextVertex.NextEdge, false);
+            var bisector = CalcInitialBisector(center, previousVertex.PreviousEdge, nextVertex.NextEdge, external);
             var edgeVertex = new Vertex(center, @event.Distance, bisector, previousVertex.PreviousEdge,
                 nextVertex.NextEdge);
 
