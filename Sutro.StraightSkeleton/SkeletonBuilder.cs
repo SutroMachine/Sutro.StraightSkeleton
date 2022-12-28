@@ -482,6 +482,7 @@ namespace Sutro.StraightSkeleton
             // line segments starting at V is parallel to ei.
             if (edgesCollide == Vector2d.MinValue)
             {
+                //return null;
                 throw new InvalidOperationException("Ups this should not happen");
             }
 

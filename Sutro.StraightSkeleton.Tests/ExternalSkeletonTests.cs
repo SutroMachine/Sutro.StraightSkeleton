@@ -22,6 +22,7 @@ namespace Sutro.StraightSkeleton.Tests
         public void GrassfireInternal()
         {
             var polygon = SampleGeometryLibrary.MakeGrassFireLogo();
+            polygon.Simplify();
 
             var sk = new SkeletonBuilder()
                 .Build(polygon, "Grassfire", external: false);

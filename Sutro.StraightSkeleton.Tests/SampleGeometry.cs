@@ -450,7 +450,7 @@ namespace Sutro.StraightSkeleton.Tests
             });
 
             var poly = new GeneralPolygon2d(outer);
-            //poly.AddHole(inner1, false, true);
+            poly.AddHole(inner1, false, true);
             poly.AddHole(inner2, false, true);
 
             return poly;
