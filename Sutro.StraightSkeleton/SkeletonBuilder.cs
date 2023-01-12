@@ -939,7 +939,7 @@ namespace Sutro.StraightSkeleton
                 if (chain.ChainType == ChainType.ClosedEdge)
                     return new PickEvent(eventCenter, distance, (EdgeChain)chain);
                 if (chain.ChainType == ChainType.Edge)
-                    return new MultiEdgeEvent(eventCenter, distance, (EdgeChain)chain);
+                    return new MultiEdgeEvent(eventCenter, distance, (EdgeChain)chain, eventCluster.Any(e => e is SplitEvent));
                 if (chain.ChainType == ChainType.Split)
                     return new MultiSplitEvent(eventCenter, distance, chains);
             }
@@ -1118,7 +1118,10 @@ namespace Sutro.StraightSkeleton
             foreach (var lav in sLav)
             {
                 foreach (var vertex in lav.Iterate())
-                    queue.AddRange(ComputeSplitEvents(vertex, edges, -1));
+                    if (IsReflexVertex(vertex))
+                    {
+                        queue.AddRange(ComputeSplitEvents(vertex, edges, -1));
+                    }
             }
 
             foreach (var lav in sLav)
@@ -1137,6 +1140,16 @@ namespace Sutro.StraightSkeleton
                     queue.AddRange(ComputeEdgeEvents(vertex, nextVertex));
                 }
             }
+        }
+
+        private bool IsReflexVertex(Vertex vertex)
+        {
+            var seg1 = new Segment2d(vertex.PreviousEdge.Begin, vertex.Point);
+            var seg2 = new Segment2d(vertex.Point, vertex.NextEdge.End);
+
+            var angle = seg1.Direction.SignedAngleRadians(seg2.Direction);
+
+            return angle < 0;
         }
 
         private void InitializeWavefront(Polygon2d polygon, HashSet<CircularList<Vertex>> wavefronts,
@@ -1278,7 +1291,8 @@ namespace Sutro.StraightSkeleton
             var edgeVertex = new Vertex(center, @event.Distance, bisector, previousVertex.PreviousEdge,
                 nextVertex.NextEdge)
             {
-                IsSplitVertex = previousVertex.IsSplitVertex || nextVertex.IsSplitVertex,
+                IsSplitVertex = previousVertex.IsSplitVertex || nextVertex.IsSplitVertex || @event.AbsorbedSplitEvent,
+                //IsSplitVertex = @event.AbsorbedSplitEvent,
             };
 
             var consumedVertices = new List<Vertex> { previousVertex };

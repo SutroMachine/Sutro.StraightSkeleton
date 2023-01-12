@@ -7,14 +7,17 @@ namespace Sutro.StraightSkeleton.Events
     {
         public readonly EdgeChain Chain;
 
+        public bool AbsorbedSplitEvent { get; } = false;
+
         public override bool IsObsolete
         {
             get { return false; }
         }
 
-        public MultiEdgeEvent(Vector2d point, double distance, EdgeChain chain) : base(point, distance)
+        public MultiEdgeEvent(Vector2d point, double distance, EdgeChain chain, bool absorbedSplitEvent) : base(point, distance)
         {
             Chain = chain;
+            AbsorbedSplitEvent = absorbedSplitEvent;
         }
     }
 }

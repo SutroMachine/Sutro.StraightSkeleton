@@ -80,7 +80,7 @@ namespace Sutro.StraightSkeleton.Tests
             expected.AddRange(outer);
             expected.AddRange(inner);
 
-            var sk = new SkeletonBuilder().Build(outer, innerList);
+            var sk = new SkeletonBuilder().Build(outer, innerList, "SkeletonTest_hole_1");
 
             SkeletonTestUtil.AssertExpectedPoints(expected, SkeletonTestUtil.GetFacePoints(sk));
         }
