@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using g3;
+﻿using g3;
 using Sutro.StraightSkeleton.Circular;
 
 namespace Sutro.StraightSkeleton

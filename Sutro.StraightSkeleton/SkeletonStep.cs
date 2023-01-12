@@ -1,8 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using g3;
-using Sutro.StraightSkeleton.Chain;
 using Sutro.StraightSkeleton.Circular;
 using Sutro.StraightSkeleton.Events;
 using Sutro.StraightSkeleton.Primitives;
@@ -12,10 +10,11 @@ namespace Sutro.StraightSkeleton
     internal class SkeletonStep
     {
         public PriorityQueue<SkeletonEvent> EventQueue { get; set; }
-        public HashSet<CircularList<Vertex>> Wavefronts { get; set; }
+        public HashSet<Wavefront> Wavefronts { get; set; }
         public List<Edge> Edges { get; set; }
         public List<BoundaryChain> Boundaries { get; set; }
-        public List<Segment2d> Segments { get; set; }
+        public List<Segment2d> RibSegments { get; set; } = new();
+        public List<Segment2d> SpineSegments { get; set; } = new();
 
         private readonly float lineWidth = 0.05f;
         private readonly float pointDiam = 0.15f;
@@ -38,7 +37,7 @@ namespace Sutro.StraightSkeleton
             var writer = new SVGWriter();
             var bounds = new AxisAlignedBox2d();
 
-            AddSegmentsToSvg(writer);
+            AddRibSegmentsToSvg(writer);
 
             var activeVertexPointStyle = SVGWriter.Style.Outline("red", lineWidth);
 
@@ -88,10 +87,19 @@ namespace Sutro.StraightSkeleton
             }
         }
 
-        public void AddSegmentsToSvg(SVGWriter writer)
+        public void AddRibSegmentsToSvg(SVGWriter writer)
         {
             var skeletonLineStyle = SVGWriter.Style.Outline("black", lineWidth * 2);
-            foreach (var segment in Segments)
+            foreach (var segment in RibSegments)
+            {
+                writer.AddLine(segment, skeletonLineStyle);
+            }
+        }
+
+        public void AddSpineSegmentsToSvg(SVGWriter writer)
+        {
+            var skeletonLineStyle = SVGWriter.Style.Outline("red", lineWidth * 4);
+            foreach (var segment in SpineSegments)
             {
                 writer.AddLine(segment, skeletonLineStyle);
             }

@@ -15,6 +15,7 @@ namespace Sutro.StraightSkeleton.Circular
         public FaceNode LeftFace;
         public Vector2d Point;
         public FaceNode RightFace;
+        public bool IsSplitVertex;
 
         public Vertex(Vector2d point, double distance, Line2d bisector,
             Edge previousEdge, Edge nextEdge)

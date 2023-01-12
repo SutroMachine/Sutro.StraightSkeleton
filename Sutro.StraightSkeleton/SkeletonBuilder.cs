@@ -102,7 +102,6 @@ namespace Sutro.StraightSkeleton
                 Wavefronts = wavefronts,
                 Edges = edges,
                 Boundaries = _boundaryChains,
-                Segments = new List<Segment2d>(),
             };
 
             foreach (var gpoly in gpolys)
@@ -145,7 +144,7 @@ namespace Sutro.StraightSkeleton
                                                                 "MultiSplitEvents for given level");
 
                         case MultiSplitEvent multiSplitEvent:
-                            MultiSplitEvent(multiSplitEvent, wavefronts, queue, edges, step.Segments);
+                            MultiSplitEvent(multiSplitEvent, wavefronts, queue, edges, step.RibSegments);
                             break;
 
                         case BoundaryEvent boundaryEvent:
@@ -153,21 +152,18 @@ namespace Sutro.StraightSkeleton
                                 break;
                             boundaryEvent.Parent.IsProcessed = true;
                             var vertex = new Vertex(boundaryEvent.V, 0, new Line2d(), null, null);
-                            step.Segments.Add(new Segment2d(boundaryEvent.Parent.Point, boundaryEvent.V));
+                            step.RibSegments.Add(new Segment2d(boundaryEvent.Parent.Point, boundaryEvent.V));
 
                             leftBoundaryFaceIntersections[boundaryEvent.Parent.RightFace.FaceQueue] = boundaryEvent;
                             rightBoundaryFaceIntersections[boundaryEvent.Parent.LeftFace.FaceQueue] = boundaryEvent;
-
-                            //boundaryEvent.Parent.RightFace.AddPush(new FaceNode(vertex));
-                            //boundaryEvent.Parent.LeftFace.AddPush(new FaceNode(vertex));
                             break;
 
                         case PickEvent pickEvent:
-                            PickEvent(pickEvent, step.Segments);
+                            PickEvent(pickEvent, step.RibSegments, step.SpineSegments);
                             break;
 
                         case MultiEdgeEvent multiEdgeEvent:
-                            MultiEdgeEvent(multiEdgeEvent, queue, edges, step.Segments, external);
+                            MultiEdgeEvent(multiEdgeEvent, queue, edges, step.RibSegments, step.SpineSegments, external);
                             break;
 
                         default:
@@ -175,7 +171,7 @@ namespace Sutro.StraightSkeleton
                     }
                 }
 
-                ProcessTwoNodeLavs(wavefronts);
+                ProcessTwoNodeLavs(wavefronts, step.SpineSegments);
                 RemoveEventsUnderHeight(queue, levelHeight);
                 RemoveEmptyLav(wavefronts);
 
@@ -194,7 +190,8 @@ namespace Sutro.StraightSkeleton
 
             step.AddEdgesToSvg(finalWriter, ref bounds);
             step.AddBoundaryEdgeToSvg(finalWriter, ref bounds);
-            step.AddSegmentsToSvg(finalWriter);
+            step.AddRibSegmentsToSvg(finalWriter);
+            step.AddSpineSegmentsToSvg(finalWriter);
 
             skeleton.AddToSVG(finalWriter, ref bounds);
             finalWriter.Write($"{svgPrefix}-FINAL.svg");
@@ -366,7 +363,7 @@ namespace Sutro.StraightSkeleton
             return new Skeleton(edgeOutputs, distances);
         }
 
-        private static void AddMultiBackFaces(List<EdgeEvent> edgeList, Vertex edgeVertex, List<Segment2d> segments)
+        private static void AddMultiBackFaces(List<EdgeEvent> edgeList, Vertex edgeVertex, List<Segment2d> ribSegments, List<Segment2d> spineSegments)
         {
             foreach (var edgeEvent in edgeList)
             {
@@ -380,8 +377,26 @@ namespace Sutro.StraightSkeleton
 
                 AddFaceBack(edgeVertex, leftVertex, rightVertex);
 
-                segments.Add(new Segment2d(edgeEvent.V, leftVertex.Point));
-                segments.Add(new Segment2d(edgeEvent.V, rightVertex.Point));
+                var leftSegment = new Segment2d(edgeEvent.V, leftVertex.Point);
+                var rightSegment = new Segment2d(edgeEvent.V, rightVertex.Point);
+
+                if (leftVertex.IsSplitVertex)
+                {
+                    spineSegments.Add(leftSegment);
+                }
+                else
+                {
+                    ribSegments.Add(leftSegment);
+                }
+
+                if (rightVertex.IsSplitVertex)
+                {
+                    spineSegments.Add(rightSegment);
+                }
+                else
+                {
+                    ribSegments.Add(rightSegment);
+                }
             }
         }
 
@@ -781,7 +796,7 @@ namespace Sutro.StraightSkeleton
         private static List<IChain> CreateChains(List<SkeletonEvent> cluster)
         {
             var edgeCluster = new HashSet<EdgeEvent>();
-            var splitCluster = new List<SplitEvent>();
+            var splitCluster = new HashSet<SplitEvent>();
             var vertexEventsParents = new HashSet<Vertex>();
 
             foreach (var skeletonEvent in cluster)
@@ -838,8 +853,8 @@ namespace Sutro.StraightSkeleton
 
             while (splitCluster.Any())
             {
-                var split = splitCluster[0];
-                splitCluster.RemoveAt(0);
+                var split = splitCluster.First();
+                splitCluster.Remove(split);
 
                 // check if chain is split type
                 if (edgeChains.Any(chain => IsInEdgeChain(split, chain)))
@@ -932,6 +947,7 @@ namespace Sutro.StraightSkeleton
             if (chains.Any(chain => chain.ChainType == ChainType.ClosedEdge))
                 throw new InvalidOperationException("Found closed chain of events for single point, " +
                                                     "but found more then one chain");
+
             return new MultiSplitEvent(eventCenter, distance, chains);
         }
 
@@ -939,7 +955,10 @@ namespace Sutro.StraightSkeleton
         {
             var bisector = CalcBisector(center, previousEdge, nextEdge);
             // edges are mirrored for event
-            return new Vertex(center, distance, bisector, previousEdge, nextEdge);
+            return new Vertex(center, distance, bisector, previousEdge, nextEdge)
+            {
+                IsSplitVertex = true,
+            };
         }
 
         private static void CreateOppositeEdgeChains(HashSet<CircularList<Vertex>> sLav,
@@ -1209,10 +1228,6 @@ namespace Sutro.StraightSkeleton
         {
             var levelEvents = LoadLevelEvents(queue);
             var groupedEvents = GroupLevelEvents(levelEvents);
-            
-            // Reversing this list magically fixes some bugs, although it's not obvious why! Sketchy.
-            groupedEvents.Reverse();
-            
             return groupedEvents;
         }
 
@@ -1248,7 +1263,7 @@ namespace Sutro.StraightSkeleton
         }
 
         private void MultiEdgeEvent(MultiEdgeEvent @event,
-            PriorityQueue<SkeletonEvent> queue, List<Edge> edges, List<Segment2d> segments, bool external)
+            PriorityQueue<SkeletonEvent> queue, List<Edge> edges, List<Segment2d> ribSegments, List<Segment2d> spineSegments, bool external)
         {
             var center = @event.V;
             var edgeList = @event.Chain.EdgeList;
@@ -1261,14 +1276,24 @@ namespace Sutro.StraightSkeleton
 
             var bisector = CalcInitialBisector(center, previousVertex.PreviousEdge, nextVertex.NextEdge, external);
             var edgeVertex = new Vertex(center, @event.Distance, bisector, previousVertex.PreviousEdge,
-                nextVertex.NextEdge);
+                nextVertex.NextEdge)
+            {
+                IsSplitVertex = previousVertex.IsSplitVertex || nextVertex.IsSplitVertex,
+            };
 
             var consumedVertices = new List<Vertex> { previousVertex };
             consumedVertices.AddRange(@event.Chain.EdgeList.Select(edge => edge.NextVertex));
 
             foreach (var v in consumedVertices)
             {
-                segments.Add(new Segment2d(v.Point, center));
+                if (v.IsSplitVertex)
+                {
+                    spineSegments.Add(new Segment2d(v.Point, center));
+                }
+                else
+                {
+                    ribSegments.Add(new Segment2d(v.Point, center));
+                }
             }
 
             // left face
@@ -1280,18 +1305,18 @@ namespace Sutro.StraightSkeleton
             previousVertex.AddPrevious(edgeVertex);
 
             // back faces
-            AddMultiBackFaces(edgeList, edgeVertex, segments);
+            AddMultiBackFaces(edgeList, edgeVertex, ribSegments, spineSegments);
 
             ComputeEvents(edgeVertex, queue, edges);
         }
 
-        private void MultiSplitEvent(MultiSplitEvent @event, HashSet<CircularList<Vertex>> sLav,
-            PriorityQueue<SkeletonEvent> queue, List<Edge> edges, List<Segment2d> segments)
+        private void MultiSplitEvent(MultiSplitEvent @event, HashSet<Wavefront> sLav,
+            PriorityQueue<SkeletonEvent> queue, List<Edge> edges, List<Segment2d> ribSegments)
         {
             var chains = @event.Chains;
             var center = @event.V;
 
-            segments.Add(new Segment2d(@event.Chains[0].CurrentVertex.Point, center));
+            ribSegments.Add(new Segment2d(@event.Chains[0].CurrentVertex.Point, center));
 
             CreateOppositeEdgeChains(sLav, chains, center);
 
@@ -1357,7 +1382,7 @@ namespace Sutro.StraightSkeleton
             }
         }
 
-        private static void PickEvent(PickEvent @event, List<Segment2d> segments)
+        private static void PickEvent(PickEvent @event, List<Segment2d> ribSegments, List<Segment2d> spineSegments)
         {
             var center = @event.V;
             var edgeList = @event.Chain.EdgeList;
@@ -1365,10 +1390,10 @@ namespace Sutro.StraightSkeleton
             // lav will be removed so it is final vertex.
             AddMultiBackFaces(edgeList, new Vertex(center, @event.Distance,
                 new Line2d(Vector2d.MinValue, Vector2d.MinValue), null, null)
-            { IsProcessed = true }, segments);
+            { IsProcessed = true }, ribSegments, spineSegments);
         }
 
-        private static void ProcessTwoNodeLavs(HashSet<CircularList<Vertex>> sLav)
+        private static void ProcessTwoNodeLavs(HashSet<Wavefront> sLav, List<Segment2d> segments)
         {
             foreach (var lav in sLav)
             {
@@ -1385,6 +1410,8 @@ namespace Sutro.StraightSkeleton
 
                     LavUtil.RemoveFromLav(first);
                     LavUtil.RemoveFromLav(last);
+
+                    segments.Add(new Segment2d(first.Point, last.Point));
                 }
             }
         }
