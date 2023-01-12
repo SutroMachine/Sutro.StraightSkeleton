@@ -35,14 +35,22 @@ namespace Sutro.StraightSkeleton
         public void ToSvg(string filename)
         {
             var writer = new SVGWriter();
+
             var bounds = new AxisAlignedBox2d();
+            AddEdgesToSvg(writer, ref bounds);
+            AddBoundaryEdgeToSvg(writer, ref bounds);
+
+            bounds.Expand(10);
 
             AddRibSegmentsToSvg(writer);
+            AddSpineSegmentsToSvg(writer);
 
             var activeVertexPointStyle = SVGWriter.Style.Outline("red", lineWidth);
 
             foreach (var vertex in Wavefronts.SelectMany(list => list.Iterate()))
             {
+                if (!bounds.Contains(vertex.Point))
+                    continue;
                 writer.AddCircle(new Circle2d(vertex.Point, pointDiam * 2), activeVertexPointStyle);
                 writer.AddLine(new Segment2d(vertex.Point, vertex.Bisector.PointAt(2)), activeVertexPointStyle);
             }
@@ -50,6 +58,9 @@ namespace Sutro.StraightSkeleton
             var eventQueueLineStyle = SVGWriter.Style.Outline("gray", lineWidth);
             foreach (var skeletonEvent in EventQueue.PeekIterate().Where(e => !e.IsObsolete))
             {
+                if (!bounds.Contains(skeletonEvent.V))
+                    continue;
+
                 switch (skeletonEvent)
                 {
                     case BoundaryEvent boundaryEvent:
@@ -64,10 +75,6 @@ namespace Sutro.StraightSkeleton
                 }
             }
 
-            AddEdgesToSvg(writer, ref bounds);
-            AddBoundaryEdgeToSvg(writer, ref bounds);
-
-            bounds.Expand(10);
             writer.AddLine(new Segment2d(bounds.GetCorner(0), bounds.GetCorner(1)), SVGWriter.Style.Outline("white", 0));
             writer.AddLine(new Segment2d(bounds.GetCorner(2), bounds.GetCorner(3)), SVGWriter.Style.Outline("white", 0));
 
