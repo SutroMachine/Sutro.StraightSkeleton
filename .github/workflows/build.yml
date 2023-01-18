@@ -6,7 +6,8 @@ on:
       - "*"
       - "hotfix/*"
       - "feature/*"
-      # - "!main" - uncomment this when setting up publish branch
+      - "!main"
+      - "!develop"
 
 jobs:
   build:

@@ -1,0 +1,85 @@
+name: Publish Preview Package
+
+on:
+  push:
+    branches:
+      - "feature/build-pipeline"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          # Shallow clones should be disabled for a better relevancy of analysis
+          fetch-depth: 0
+
+      - name: Bump version and push tag
+        id: tag_version
+        uses: mathieudutour/github-tag-action@v6.1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          pre_release_branches: develop
+          dry_run: true
+          
+      # - name: Git LFS pull
+      #   run: git lfs pull
+
+      # - uses: actions/setup-java@v3
+      #   with:
+      #     distribution: 'microsoft'
+      #     java-version: '11'
+
+      # # Speed-up analysis by caching the scanner workspace
+      # - name: Cache SonarCloud workspace
+      #   uses: actions/cache@v3
+      #   with:
+      #     path: ~\.sonar\cache
+      #     key: ${{ runner.os }}-sonar-cache
+      #     restore-keys: ${{ runner.os }}-sonar-cache
+
+      # # Speed-up analysis by caching the scanner installation
+      # - name: Cache SonarCloud scanner
+      #   id: cache-sonar-scanner
+      #   uses: actions/cache@v1
+      #   with:
+      #     path: .\.sonar\scanner
+      #     key: ${{ runner.os }}-sonar-scanner
+      #     restore-keys: ${{ runner.os }}-sonar-scanner
+
+      # - name: Install SonarCloud scanner
+      #   if: steps.cache-sonar-scanner.outputs.cache-hit != 'true'
+      #   shell: powershell
+      #   # The --version argument is optional. If it is omitted the latest version will be installed.
+      #   run: |
+      #     New-Item -Path .\.sonar\scanner -ItemType Directory
+      #     dotnet tool update dotnet-sonarscanner --tool-path .\.sonar\scanner
+
+      # - name: Build, test & analyze solution
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
+      #     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      #   shell: powershell
+      #   run: |
+      #     .\.sonar\scanner\dotnet-sonarscanner begin /k:"SutroMachine_Sutro.StraightSkeleton" /o:"sutromachine" /d:sonar.login="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:"sonar.cs.opencover.reportsPaths=**/coverage.opencover.xml"
+      #     dotnet test --collect:"XPlat Code Coverage" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
+      #     .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.login="${{ secrets.SONAR_TOKEN }}"
+
+      # - name: Publish on version change
+      #   id: publish_nuget
+      #   uses: AraHaan/publish-nuget@patch-2
+      #   with:
+      #     # Relative to repository root
+      #     PROJECT_FILE_PATH: Sutro.StraightSkeleton/Sutro.StraightSkeleton.csproj
+
+      #     # Regex pattern to extract version info in a capturing group
+      #     VERSION_REGEX: <Version>(.*)<\/Version>
+
+      #     # Flag to enable / disable git tagging
+      #     TAG_COMMIT: true
+
+      #     # Format of the git tag, [*] gets replaced with version
+      #     TAG_FORMAT: v*
+
+      #     # nuget.org API key
+      #     NUGET_KEY: ${{secrets.NUGET_API_KEY}}
