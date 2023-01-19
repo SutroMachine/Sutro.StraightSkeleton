@@ -214,8 +214,7 @@ namespace Sutro.StraightSkeleton
                 finalWriter.Write($"{svgPrefix}-FINAL.svg");
             }
 
-            //var offsetSeed = OffsetSeed.FromFaceQueues(faces);
-            //MakeAndExportOffsets(skeleton, offsetSeed, step, $"{svgPrefix}-OFFSETS.svg");
+            skeleton.OffsetSeed = OffsetSeed.FromFaceQueues(faces);
 
             // Clean up for next usage
             Reset();

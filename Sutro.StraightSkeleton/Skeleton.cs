@@ -18,6 +18,9 @@ namespace Sutro.StraightSkeleton
         /// <summary> Central spine of the skeleton. </summary>
         public CurveCollection Spine { get; } = new();
 
+        /// <summary> Seed for creating offsets from the skeleton. </summary>
+        public OffsetSeed OffsetSeed { get; internal set; }
+
         /// <summary> Creates instance of <see cref="Skeleton"/>. </summary>
         public Skeleton(IList<EdgeResult> edges, Dictionary<Vector2d, double> distances)
         {
@@ -54,7 +57,7 @@ namespace Sutro.StraightSkeleton
 
             // DGraph doesn't have a convenient way to check if a Vector2d is already in the graph,
             // so we'll track it in a dictionary as we construct the graph. To avoid issues
-            // with comparing floating-point numbers, we'll generate a hash for each vertex based on 
+            // with comparing floating-point numbers, we'll generate a hash for each vertex based on
             // rounded x & y values, so near-identical vectors have the same hash.
 
             // Dictionary of (VertexHash, VertexId)

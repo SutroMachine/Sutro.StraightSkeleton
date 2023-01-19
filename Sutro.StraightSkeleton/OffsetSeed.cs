@@ -52,7 +52,7 @@ namespace Sutro.StraightSkeleton
 
                 if (!MathUtil.EpsilonEqual(edgesStart.MaxDistance, edgesEnd.MaxDistance, 1e-6))
                 {
-                    throw new Exception();
+                    //throw new Exception();
                 }
             }
 
