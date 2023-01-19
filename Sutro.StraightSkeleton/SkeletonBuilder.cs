@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using g3;
@@ -85,6 +86,11 @@ namespace Sutro.StraightSkeleton
         /// <summary> Creates straight skeleton for given polygon with holes. </summary>
         public Skeleton Build(List<GeneralPolygon2d> gpolys, string svgPrefix = "", bool external = false)
         {
+            // Make sure directory for SVG output exists
+            var svgFolder = System.IO.Path.GetDirectoryName(svgPrefix);
+            if (!string.IsNullOrEmpty(svgFolder))
+                Directory.CreateDirectory(svgFolder);
+
             foreach (var gpoly in gpolys)
             {
                 ValidateGeneralPolygon(gpoly);
@@ -117,7 +123,11 @@ namespace Sutro.StraightSkeleton
             InitEvents(wavefronts, queue, edges);
 
             int stepCount = 0;
-            step.ToSvg($"{svgPrefix}-{stepCount}.svg");
+
+            if (!string.IsNullOrWhiteSpace(svgPrefix))
+            {
+                step.ToSvg($"{svgPrefix}-{stepCount}.svg");
+            }
 
             var leftBoundaryFaceIntersections = new Dictionary<FaceQueue, BoundaryEvent>();
             var rightBoundaryFaceIntersections = new Dictionary<FaceQueue, BoundaryEvent>();
@@ -176,7 +186,11 @@ namespace Sutro.StraightSkeleton
                 RemoveEmptyLav(wavefronts);
 
                 ++stepCount;
-                step.ToSvg($"{svgPrefix}-{stepCount}.svg");
+
+                if (!string.IsNullOrWhiteSpace(svgPrefix))
+                {
+                    step.ToSvg($"{svgPrefix}-{stepCount}.svg");
+                }
             }
 
             AddBoundaryEdgesToFaces(faces, leftBoundaryFaceIntersections, rightBoundaryFaceIntersections);
@@ -186,16 +200,19 @@ namespace Sutro.StraightSkeleton
             var finalWriter = new SVGWriter();
             var bounds = new AxisAlignedBox2d();
 
-            skeleton.AddToSVG(finalWriter, ref bounds);
+            if (!string.IsNullOrWhiteSpace(svgPrefix))
+            {
+                skeleton.AddToSVG(finalWriter, ref bounds);
 
-            step.AddEdgesToSvg(finalWriter, ref bounds);
-            step.AddBoundaryEdgeToSvg(finalWriter, ref bounds);
-            step.AddRibSegmentsToSvg(finalWriter);
-            step.AddSpineSegmentsToSvg(finalWriter);
+                step.AddEdgesToSvg(finalWriter, ref bounds);
+                step.AddBoundaryEdgeToSvg(finalWriter, ref bounds);
+                step.AddRibSegmentsToSvg(finalWriter);
+                step.AddSpineSegmentsToSvg(finalWriter);
 
-            skeleton.AddSpineSegments(step.SpineSegments);
-            skeleton.AddToSVG(finalWriter, ref bounds);
-            finalWriter.Write($"{svgPrefix}-FINAL.svg");
+                skeleton.AddSpineSegments(step.SpineSegments);
+                skeleton.AddToSVG(finalWriter, ref bounds);
+                finalWriter.Write($"{svgPrefix}-FINAL.svg");
+            }
 
             //var offsetSeed = OffsetSeed.FromFaceQueues(faces);
             //MakeAndExportOffsets(skeleton, offsetSeed, step, $"{svgPrefix}-OFFSETS.svg");
@@ -698,7 +715,7 @@ namespace Sutro.StraightSkeleton
         {
             var point = ComputeIntersectionBisectors(previousVertex, nextVertex);
             if (point != Vector2d.MinValue)
-                 yield return CreateEdgeEvent(point, previousVertex, nextVertex);
+                yield return CreateEdgeEvent(point, previousVertex, nextVertex);
         }
 
         private void ComputeEvents(Vertex vertex, PriorityQueue<SkeletonEvent> queue, List<Edge> edges)
@@ -1176,7 +1193,6 @@ namespace Sutro.StraightSkeleton
             }
 
             wavefronts.Add(CreateWavefront(faces, edgesList));
-
         }
 
         private static Wavefront CreateWavefront(List<FaceQueue> faces, CircularList<Edge> edgesList)
