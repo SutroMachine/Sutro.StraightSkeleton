@@ -1,4 +1,4 @@
-name: Publish Preview to NuGet
+name: Publish to NuGet
 
 on:
   push:
@@ -30,6 +30,6 @@ jobs:
         run: dotnet pack --no-build --configuration Release /p:Version=${VERSION_TAG} -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg --output . Sutro.StraightSkeleton/Sutro.StraightSkeleton.csproj
       
       - name: Push
-        run: dotnet nuget push Sutro.StraightSkeleton.${VERSION_TAG}.snupkg --api-key ${{secrets.NUGET_API_KEY}}
+        run: dotnet nuget push Sutro.StraightSkeleton.${VERSION_TAG}.snupkg --api-key ${secrets.NUGET_API_KEY}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
