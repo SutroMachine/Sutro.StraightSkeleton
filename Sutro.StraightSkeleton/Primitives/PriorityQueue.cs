@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace Sutro.StraightSkeleton.Primitives
@@ -65,6 +66,15 @@ namespace Sutro.StraightSkeleton.Primitives
             }
         }
 
+        public void AddRange(IEnumerable<T> items)
+        {
+            // There is probably a faster way of adding multiple items
+            foreach (var item in items)
+            {
+                Add(item);
+            }
+        }
+
         /// <summary>Clear all the elements from the priority queue</summary>
         public void Clear()
         {
@@ -116,6 +126,11 @@ namespace Sutro.StraightSkeleton.Primitives
         public T Peek()
         {
             return !_heap.Any() ? default(T) : _heap[0];
+        }
+
+        internal IEnumerable<T> PeekIterate()
+        {
+            return _heap;
         }
 
         private readonly IComparer<T> _comparer;

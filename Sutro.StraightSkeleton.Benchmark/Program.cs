@@ -25,7 +25,7 @@ namespace Sutro.StraightSkeleton.Benchmark
         [Benchmark(Baseline = true)]
         public void Baseline()
         {
-            SkeletonBuilder.Build(grassfireLogo);
+            new SkeletonBuilder().Build(grassfireLogo);
         }
 
         private static GeneralPolygon2d MakeGrassFireLogo()
@@ -318,7 +318,7 @@ namespace Sutro.StraightSkeleton.Benchmark
         });
 
             var poly = new GeneralPolygon2d(outer);
-            // poly.AddHole(inner1, false, true);
+            //poly.AddHole(inner1, false, true);
             poly.AddHole(inner2, false, true);
 
             return poly;

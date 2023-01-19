@@ -5,7 +5,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Sutro.Clipper" Version="1.1.6" />
     <PackageReference Include="Sutro.geometry3Sharp" Version="1.0.20" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Chain\" />
   </ItemGroup>
 
 </Project>

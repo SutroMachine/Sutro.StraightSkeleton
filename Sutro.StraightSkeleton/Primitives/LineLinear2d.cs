@@ -8,7 +8,7 @@ namespace Sutro.StraightSkeleton.Primitives
     ///     Ax + By + C = 0;
     ///     <see href="http://en.wikipedia.org/wiki/Linear_equation"/>
     /// </summary>
-    internal struct LineLinear2d
+    public struct LineLinear2d
     {
         public double A;
         public double B;

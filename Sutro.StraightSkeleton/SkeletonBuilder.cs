@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using g3;
+using Sutro.StraightSkeleton.Chain;
 using Sutro.StraightSkeleton.Circular;
 using Sutro.StraightSkeleton.Events;
 using Sutro.StraightSkeleton.Events.Chains;
@@ -17,21 +19,51 @@ namespace Sutro.StraightSkeleton
     /// <remarks>
     ///     This is .NET adopted port of java implementation from kendzi-straight-skeleton library.
     /// </remarks>
+    ///
     public class SkeletonBuilder
     {
-        /// <summary> Creates straight skeleton for given polygon. </summary>
-        public static Skeleton Build(List<Vector2d> points)
+        internal readonly List<BoundaryChain> _boundaryChains = new();
+
+        public void Reset()
         {
-            return Build(new GeneralPolygon2d(new Polygon2d(points)));
+            _boundaryChains.Clear();
         }
 
-        public static Skeleton Build(Polygon2d polygon)
+        public SkeletonBuilder AddBoundary(PolyLine2d polyline)
         {
-            return Build(new GeneralPolygon2d(polygon));
+            _boundaryChains.Add(new BoundaryChain(polyline.Vertices, BoundaryEdge.FromVectors, false));
+            return this;
+        }
+
+        public SkeletonBuilder AddBoundary(Polygon2d poly)
+        {
+            _boundaryChains.Add(new BoundaryChain(poly.Vertices, BoundaryEdge.FromVectors, true));
+            return this;
+        }
+
+        public SkeletonBuilder AddBoundary(GeneralPolygon2d gpoly)
+        {
+            _boundaryChains.Add(new BoundaryChain(gpoly.Outer.Vertices, BoundaryEdge.FromVectors, true));
+            foreach (var hole in gpoly.Holes)
+            {
+                _boundaryChains.Add(new BoundaryChain(hole.Vertices, BoundaryEdge.FromVectors, true));
+            }
+            return this;
+        }
+
+        /// <summary> Creates straight skeleton for given polygon. </summary>
+        public Skeleton Build(List<Vector2d> points, string svgPrefix = "", bool external = false)
+        {
+            return Build(new GeneralPolygon2d(new Polygon2d(points)), svgPrefix, external);
+        }
+
+        public Skeleton Build(Polygon2d polygon, string svgPrefix = "", bool external = false)
+        {
+            return Build(new GeneralPolygon2d(polygon), svgPrefix, external);
         }
 
         /// <summary> Creates straight skeleton for given polygon with holes. </summary>
-        public static Skeleton Build(List<Vector2d> outer, List<List<Vector2d>> holes)
+        public Skeleton Build(List<Vector2d> outer, List<List<Vector2d>> holes, string svgPrefix = "", bool external = false)
         {
             var gpoly = new GeneralPolygon2d(new Polygon2d(outer));
 
@@ -42,28 +74,53 @@ namespace Sutro.StraightSkeleton
                     gpoly.AddHole(new Polygon2d(hole), bCheckContainment: false, bCheckOrientation: false);
                 }
             }
-            return Build(gpoly);
+            return Build(gpoly, svgPrefix, external);
+        }
+
+        public Skeleton Build(GeneralPolygon2d gpoly, string svgPrefix = "", bool external = false)
+        {
+            return Build(new List<GeneralPolygon2d>(new[] { gpoly }), svgPrefix, external);
         }
 
         /// <summary> Creates straight skeleton for given polygon with holes. </summary>
-        public static Skeleton Build(GeneralPolygon2d gpoly)
+        public Skeleton Build(List<GeneralPolygon2d> gpolys, string svgPrefix = "", bool external = false)
         {
-            ValidateGeneralPolygon(gpoly);
-            gpoly.EnforceCounterClockwise();
+            foreach (var gpoly in gpolys)
+            {
+                ValidateGeneralPolygon(gpoly);
+                gpoly.EnforceCounterClockwise();
+            }
 
-            var queue = new PriorityQueue<SkeletonEvent>(3, new SkeletonEventDistanseComparer());
-            var sLav = new HashSet<CircularList<Vertex>>();
+            var queue = new PriorityQueue<SkeletonEvent>(3, new SkeletonEventDistanceComparer());
+            var wavefronts = new HashSet<Wavefront>();
             var faces = new List<FaceQueue>();
             var edges = new List<Edge>();
 
-            InitSlav(gpoly.Outer, sLav, edges, faces);
-
-            foreach (var inner in gpoly.Holes)
+            var step = new SkeletonStep()
             {
-                InitSlav(inner, sLav, edges, faces);
+                EventQueue = queue,
+                Wavefronts = wavefronts,
+                Edges = edges,
+                Boundaries = _boundaryChains,
+            };
+
+            foreach (var gpoly in gpolys)
+            {
+                InitializeWavefront(gpoly.Outer, wavefronts, edges, faces, external);
+
+                foreach (var inner in gpoly.Holes)
+                {
+                    InitializeWavefront(inner, wavefronts, edges, faces, external);
+                }
             }
 
-            InitEvents(sLav, queue, edges);
+            InitEvents(wavefronts, queue, edges);
+
+            int stepCount = 0;
+            step.ToSvg($"{svgPrefix}-{stepCount}.svg");
+
+            var leftBoundaryFaceIntersections = new Dictionary<FaceQueue, BoundaryEvent>();
+            var rightBoundaryFaceIntersections = new Dictionary<FaceQueue, BoundaryEvent>();
 
             var count = 0;
             while (!queue.Empty)
@@ -87,15 +144,26 @@ namespace Sutro.StraightSkeleton
                                                                 "MultiSplitEvents for given level");
 
                         case MultiSplitEvent multiSplitEvent:
-                            MultiSplitEvent(multiSplitEvent, sLav, queue, edges);
+                            MultiSplitEvent(multiSplitEvent, wavefronts, queue, edges, step.RibSegments);
+                            break;
+
+                        case BoundaryEvent boundaryEvent:
+                            if (boundaryEvent.Parent.IsProcessed)
+                                break;
+                            boundaryEvent.Parent.IsProcessed = true;
+                            var vertex = new Vertex(boundaryEvent.V, 0, new Line2d(), null, null);
+                            step.RibSegments.Add(new Segment2d(boundaryEvent.Parent.Point, boundaryEvent.V));
+
+                            leftBoundaryFaceIntersections[boundaryEvent.Parent.RightFace.FaceQueue] = boundaryEvent;
+                            rightBoundaryFaceIntersections[boundaryEvent.Parent.LeftFace.FaceQueue] = boundaryEvent;
                             break;
 
                         case PickEvent pickEvent:
-                            PickEvent(pickEvent);
+                            PickEvent(pickEvent, step.RibSegments, step.SpineSegments);
                             break;
 
                         case MultiEdgeEvent multiEdgeEvent:
-                            MultiEdgeEvent(multiEdgeEvent, queue, edges);
+                            MultiEdgeEvent(multiEdgeEvent, queue, edges, step.RibSegments, step.SpineSegments, external);
                             break;
 
                         default:
@@ -103,12 +171,108 @@ namespace Sutro.StraightSkeleton
                     }
                 }
 
-                ProcessTwoNodeLavs(sLav);
+                ProcessTwoNodeLavs(wavefronts, step.SpineSegments);
                 RemoveEventsUnderHeight(queue, levelHeight);
-                RemoveEmptyLav(sLav);
+                RemoveEmptyLav(wavefronts);
+
+                ++stepCount;
+                step.ToSvg($"{svgPrefix}-{stepCount}.svg");
             }
 
-            return AddFacesToOutput(faces);
+            AddBoundaryEdgesToFaces(faces, leftBoundaryFaceIntersections, rightBoundaryFaceIntersections);
+
+            var skeleton = AddFacesToOutput(faces);
+
+            var finalWriter = new SVGWriter();
+            var bounds = new AxisAlignedBox2d();
+
+            skeleton.AddToSVG(finalWriter, ref bounds);
+
+            step.AddEdgesToSvg(finalWriter, ref bounds);
+            step.AddBoundaryEdgeToSvg(finalWriter, ref bounds);
+            step.AddRibSegmentsToSvg(finalWriter);
+            step.AddSpineSegmentsToSvg(finalWriter);
+
+            skeleton.AddSpineSegments(step.SpineSegments);
+            skeleton.AddToSVG(finalWriter, ref bounds);
+            finalWriter.Write($"{svgPrefix}-FINAL.svg");
+
+            //var offsetSeed = OffsetSeed.FromFaceQueues(faces);
+            //MakeAndExportOffsets(skeleton, offsetSeed, step, $"{svgPrefix}-OFFSETS.svg");
+
+            // Clean up for next usage
+            Reset();
+
+            return skeleton;
+        }
+
+        private static void MakeAndExportOffsets(Skeleton skeleton, OffsetSeed offsetSeed, SkeletonStep step, string filename)
+        {
+            var svg = new SVGWriter();
+            var bounds = new AxisAlignedBox2d();
+            step.AddEdgesToSvg(svg, ref bounds);
+            step.AddBoundaryEdgeToSvg(svg, ref bounds);
+            skeleton.AddToSVG(svg, ref bounds);
+
+            int nOffsets = 15;
+            double incrOffset = offsetSeed.MaxDistance / (nOffsets + 1);
+
+            for (int i = 1; i < nOffsets; i++)
+            {
+                double offset = i * incrOffset;
+
+                var segs = offsetSeed.MakeOffset(offset);
+                foreach (var seg in segs)
+                {
+                    svg.AddLine(seg, SVGWriter.Style.Outline("green", 0.05f));
+                }
+            }
+
+            svg.Write(filename);
+        }
+
+        private void AddBoundaryEdgesToFaces(List<FaceQueue> faces, Dictionary<FaceQueue, BoundaryEvent> leftBoundaryFaceIntersections, Dictionary<FaceQueue, BoundaryEvent> rightBoundaryFaceIntersections)
+        {
+            foreach (var face in faces.Where(f => leftBoundaryFaceIntersections.ContainsKey(f) && rightBoundaryFaceIntersections.ContainsKey(f)))
+            {
+                var left = leftBoundaryFaceIntersections[face];
+                var right = rightBoundaryFaceIntersections[face];
+
+                var node = face.First;
+                while (node.Next != null)
+                {
+                    node = node.Next;
+                }
+
+                var faceNode = node as FaceNode;
+                var seedLine = new Line2d(faceNode.Vertex.PreviousEdge.Begin, (faceNode.Vertex.PreviousEdge.End - faceNode.Vertex.PreviousEdge.Begin).Normalized);
+
+                if (faceNode != null && right.Parent != faceNode.Vertex)
+                    throw new Exception();
+
+                // Should update BoundaryEvent to have the proper distance, using velocity!
+                double distanceRight = Math.Sqrt(seedLine.DistanceSquared(right.V));
+
+                var newFaceNode = new FaceNode(new Vertex(right.V, distanceRight, new Line2d(), null, null));
+                faceNode.AddPush(newFaceNode);
+                faceNode = newFaceNode;
+                var boundaryEdge = right.BoundaryEdge;
+
+                while (left.BoundaryEdge != boundaryEdge)
+                {
+                    double distance = Math.Sqrt(seedLine.DistanceSquared(boundaryEdge.Value.Segment.P0));
+                    newFaceNode = new FaceNode(new Vertex(boundaryEdge.Value.Segment.P0, distance, new Line2d(), null, null));
+                    faceNode.AddPush(newFaceNode);
+                    faceNode = newFaceNode;
+
+                    boundaryEdge = boundaryEdge.PreviousEdge;
+                }
+
+                // Should update BoundaryEvent to have the proper distance, using velocity!
+                double distanceLeft = Math.Sqrt(seedLine.DistanceSquared(left.V));
+
+                faceNode.AddPush(new FaceNode(new Vertex(left.V, distanceLeft, new Line2d(), null, null)));
+            }
         }
 
         internal static bool EdgeBehindBisector(Line2d bisector, LineLinear2d edge)
@@ -139,7 +303,7 @@ namespace Sutro.StraightSkeleton
         }
 
         // Error epsilon.
-        private const double SplitEpsilon = 1E-10;
+        private const double SplitEpsilon = 1E-6;
 
         private static void AddEventToGroup(HashSet<Vertex> parentGroup, SkeletonEvent skeletonEvent)
         {
@@ -151,6 +315,10 @@ namespace Sutro.StraightSkeleton
             {
                 parentGroup.Add(edgeEvent.PreviousVertex);
                 parentGroup.Add(edgeEvent.NextVertex);
+            }
+            else if (skeletonEvent is BoundaryEvent boundaryEvent)
+            {
+                parentGroup.Add(boundaryEvent.Parent);
             }
         }
 
@@ -196,7 +364,7 @@ namespace Sutro.StraightSkeleton
             return new Skeleton(edgeOutputs, distances);
         }
 
-        private static void AddMultiBackFaces(List<EdgeEvent> edgeList, Vertex edgeVertex)
+        private static void AddMultiBackFaces(List<EdgeEvent> edgeList, Vertex edgeVertex, List<Segment2d> ribSegments, List<Segment2d> spineSegments)
         {
             foreach (var edgeEvent in edgeList)
             {
@@ -209,6 +377,27 @@ namespace Sutro.StraightSkeleton
                 LavUtil.RemoveFromLav(rightVertex);
 
                 AddFaceBack(edgeVertex, leftVertex, rightVertex);
+
+                var leftSegment = new Segment2d(edgeEvent.V, leftVertex.Point);
+                var rightSegment = new Segment2d(edgeEvent.V, rightVertex.Point);
+
+                if (leftVertex.IsSplitVertex)
+                {
+                    spineSegments.Add(leftSegment);
+                }
+                else
+                {
+                    ribSegments.Add(leftSegment);
+                }
+
+                if (rightVertex.IsSplitVertex)
+                {
+                    spineSegments.Add(rightSegment);
+                }
+                else
+                {
+                    ribSegments.Add(rightSegment);
+                }
             }
         }
 
@@ -290,13 +479,9 @@ namespace Sutro.StraightSkeleton
             return count;
         }
 
-        private static Line2d CalcBisector(Vector2d p, Edge e1, Edge e2)
+        protected static Line2d CalcBisector(Vector2d p, Edge e1, Edge e2)
         {
-            var norm1 = e1.Norm;
-            var norm2 = e2.Norm;
-
-            var bisector = CalcVectorBisector(norm1, norm2);
-            return new Line2d(p, bisector);
+            return new Line2d(p, CalcVectorBisector(e1.Norm, e2.Norm));
         }
 
         private static SplitCandidate CalcCandidatePointForSplit(Vertex vertex, Edge edge)
@@ -313,6 +498,7 @@ namespace Sutro.StraightSkeleton
             // line segments starting at V is parallel to ei.
             if (edgesCollide == Vector2d.MinValue)
             {
+                //return null;
                 throw new InvalidOperationException("Ups this should not happen");
             }
 
@@ -369,7 +555,29 @@ namespace Sutro.StraightSkeleton
             return ret;
         }
 
-        private static Vector2d CalcVectorBisector(Vector2d norm1, Vector2d norm2)
+        private IEnumerable<BoundaryEvent> ComputeBoundaryEvents(Vertex vertex)
+        {
+            foreach (var loop in _boundaryChains)
+            {
+                foreach (var boundaryEdge in loop.EnumerateEdges())
+                {
+                    // check if edge is behind bisector
+                    if (EdgeBehindBisector(vertex.Bisector, boundaryEdge.Value.LineLinear2d))
+                        continue;
+
+                    // compute the coordinates of the intersection point
+                    var intersection = new IntrLine2Segment2(vertex.Bisector, boundaryEdge.Value.Segment);
+                    intersection.Compute();
+
+                    if (intersection.Result == IntersectionResult.Intersects)
+                    {
+                        yield return new BoundaryEvent(intersection.Point, intersection.Parameter + vertex.Distance, vertex, boundaryEdge);
+                    }
+                }
+            }
+        }
+
+        protected static Vector2d CalcVectorBisector(Vector2d norm1, Vector2d norm2)
         {
             return VectorExtensions.BisectorNormalized(norm1, norm2);
         }
@@ -486,18 +694,18 @@ namespace Sutro.StraightSkeleton
             return distance1 < distance2 ? distance1 : distance2;
         }
 
-        private static void ComputeEdgeEvents(Vertex previousVertex, Vertex nextVertex,
-            PriorityQueue<SkeletonEvent> queue)
+        private static IEnumerable<EdgeEvent> ComputeEdgeEvents(Vertex previousVertex, Vertex nextVertex)
         {
             var point = ComputeIntersectionBisectors(previousVertex, nextVertex);
             if (point != Vector2d.MinValue)
-                queue.Add(CreateEdgeEvent(point, previousVertex, nextVertex));
+                 yield return CreateEdgeEvent(point, previousVertex, nextVertex);
         }
 
-        private static void ComputeEvents(Vertex vertex, PriorityQueue<SkeletonEvent> queue, List<Edge> edges)
+        private void ComputeEvents(Vertex vertex, PriorityQueue<SkeletonEvent> queue, List<Edge> edges)
         {
             var distanceSquared = ComputeCloserEdgeEvent(vertex, queue);
-            ComputeSplitEvents(vertex, edges, queue, distanceSquared);
+            queue.AddRange(ComputeSplitEvents(vertex, edges, distanceSquared));
+            queue.AddRange(ComputeBoundaryEvents(vertex));
         }
 
         private static Vector2d ComputeIntersectionBisectors(Vertex vertexPrevious, Vertex vertexNext)
@@ -517,7 +725,7 @@ namespace Sutro.StraightSkeleton
             return Vector2d.MinValue;
         }
 
-        private static void ComputeSplitEvents(Vertex vertex, List<Edge> edges, PriorityQueue<SkeletonEvent> queue,
+        private static IEnumerable<SkeletonEvent> ComputeSplitEvents(Vertex vertex, List<Edge> edges,
             double distanceSquared)
         {
             var source = vertex.Point;
@@ -545,10 +753,10 @@ namespace Sutro.StraightSkeleton
                 if (oppositeEdge.OppositePoint != Vector2d.MinValue)
                 {
                     // some of vertex event can share the same opposite point
-                    queue.Add(new VertexSplitEvent(point, oppositeEdge.Distance, vertex));
+                    yield return new VertexSplitEvent(point, oppositeEdge.Distance, vertex);
                     continue;
                 }
-                queue.Add(new SplitEvent(point, oppositeEdge.Distance, vertex, oppositeEdge.OppositeEdge));
+                yield return new SplitEvent(point, oppositeEdge.Distance, vertex, oppositeEdge.OppositeEdge);
             }
         }
 
@@ -562,8 +770,8 @@ namespace Sutro.StraightSkeleton
             var beginEdge2 = beginNextVertex.PreviousEdge;
             var endEdge2 = endPreviousVertex.NextEdge;
 
-            if (beginEdge != beginEdge2 || endEdge != endEdge2)
-                throw new InvalidOperationException();
+            //if (beginEdge != beginEdge2 || endEdge != endEdge2)
+            //    throw new InvalidOperationException();
 
             // Check if edges are parallel and in opposite direction to each other.
             if (beginEdge.Norm.Dot(endEdge.Norm) < -0.97)
@@ -589,7 +797,7 @@ namespace Sutro.StraightSkeleton
         private static List<IChain> CreateChains(List<SkeletonEvent> cluster)
         {
             var edgeCluster = new HashSet<EdgeEvent>();
-            var splitCluster = new List<SplitEvent>();
+            var splitCluster = new HashSet<SplitEvent>();
             var vertexEventsParents = new HashSet<Vertex>();
 
             foreach (var skeletonEvent in cluster)
@@ -646,8 +854,8 @@ namespace Sutro.StraightSkeleton
 
             while (splitCluster.Any())
             {
-                var split = splitCluster[0];
-                splitCluster.RemoveAt(0);
+                var split = splitCluster.First();
+                splitCluster.Remove(split);
 
                 // check if chain is split type
                 if (edgeChains.Any(chain => IsInEdgeChain(split, chain)))
@@ -716,7 +924,7 @@ namespace Sutro.StraightSkeleton
             return edgeList;
         }
 
-        private static SkeletonEvent CreateEdgeEvent(Vector2d point, Vertex previousVertex, Vertex nextVertex)
+        private static EdgeEvent CreateEdgeEvent(Vector2d point, Vertex previousVertex, Vertex nextVertex)
         {
             return new EdgeEvent(point, CalcDistance(point, previousVertex.NextEdge), previousVertex, nextVertex);
         }
@@ -732,7 +940,7 @@ namespace Sutro.StraightSkeleton
                 if (chain.ChainType == ChainType.ClosedEdge)
                     return new PickEvent(eventCenter, distance, (EdgeChain)chain);
                 if (chain.ChainType == ChainType.Edge)
-                    return new MultiEdgeEvent(eventCenter, distance, (EdgeChain)chain);
+                    return new MultiEdgeEvent(eventCenter, distance, (EdgeChain)chain, eventCluster.Any(e => e is SplitEvent));
                 if (chain.ChainType == ChainType.Split)
                     return new MultiSplitEvent(eventCenter, distance, chains);
             }
@@ -740,6 +948,7 @@ namespace Sutro.StraightSkeleton
             if (chains.Any(chain => chain.ChainType == ChainType.ClosedEdge))
                 throw new InvalidOperationException("Found closed chain of events for single point, " +
                                                     "but found more then one chain");
+
             return new MultiSplitEvent(eventCenter, distance, chains);
         }
 
@@ -747,7 +956,10 @@ namespace Sutro.StraightSkeleton
         {
             var bisector = CalcBisector(center, previousEdge, nextEdge);
             // edges are mirrored for event
-            return new Vertex(center, distance, bisector, previousEdge, nextEdge);
+            return new Vertex(center, distance, bisector, previousEdge, nextEdge)
+            {
+                IsSplitVertex = true,
+            };
         }
 
         private static void CreateOppositeEdgeChains(HashSet<CircularList<Vertex>> sLav,
@@ -863,6 +1075,13 @@ namespace Sutro.StraightSkeleton
                 var @eventCenter = @event.V;
                 var distance = @event.Distance;
 
+                if (@event is BoundaryEvent boundaryEvent)
+                {
+                    // TODO: Add smarter handling for poly events
+                    ret.Add(@event);
+                    continue;
+                }
+
                 AddEventToGroup(parentGroup, @event);
 
                 var cluster = new List<SkeletonEvent> { @event };
@@ -894,13 +1113,24 @@ namespace Sutro.StraightSkeleton
             return ret;
         }
 
-        private static void InitEvents(HashSet<CircularList<Vertex>> sLav,
+        private void InitEvents(HashSet<CircularList<Vertex>> sLav,
             PriorityQueue<SkeletonEvent> queue, List<Edge> edges)
         {
             foreach (var lav in sLav)
             {
                 foreach (var vertex in lav.Iterate())
-                    ComputeSplitEvents(vertex, edges, queue, -1);
+                    if (IsReflexVertex(vertex))
+                    {
+                        queue.AddRange(ComputeSplitEvents(vertex, edges, -1));
+                    }
+            }
+
+            foreach (var lav in sLav)
+            {
+                foreach (var vertex in lav.Iterate())
+                {
+                    queue.AddRange(ComputeBoundaryEvents(vertex));
+                }
             }
 
             foreach (var lav in sLav)
@@ -908,13 +1138,23 @@ namespace Sutro.StraightSkeleton
                 foreach (var vertex in lav.Iterate())
                 {
                     var nextVertex = vertex.Next as Vertex;
-                    ComputeEdgeEvents(vertex, nextVertex, queue);
+                    queue.AddRange(ComputeEdgeEvents(vertex, nextVertex));
                 }
             }
         }
 
-        private static void InitSlav(Polygon2d polygon, HashSet<CircularList<Vertex>> sLav,
-            List<Edge> edges, List<FaceQueue> faces)
+        private bool IsReflexVertex(Vertex vertex)
+        {
+            var seg1 = new Segment2d(vertex.PreviousEdge.Begin, vertex.Point);
+            var seg2 = new Segment2d(vertex.Point, vertex.NextEdge.End);
+
+            var angle = seg1.Direction.SignedAngleRadians(seg2.Direction);
+
+            return angle < 0;
+        }
+
+        private void InitializeWavefront(Polygon2d polygon, HashSet<CircularList<Vertex>> wavefronts,
+            List<Edge> edges, List<FaceQueue> faces, bool reverse)
         {
             var edgesList = new CircularList<Edge>();
 
@@ -928,16 +1168,20 @@ namespace Sutro.StraightSkeleton
             foreach (var edge in edgesList.Iterate())
             {
                 var nextEdge = edge.Next as Edge;
-                var bisector = CalcBisector(edge.End, edge, nextEdge);
+                var bisector = CalcInitialBisector(edge.End, edge, nextEdge, reverse);
 
                 edge.BisectorNext = bisector;
                 nextEdge.BisectorPrevious = bisector;
                 edges.Add(edge);
             }
 
-            var lav = new CircularList<Vertex>();
-            sLav.Add(lav);
+            wavefronts.Add(CreateWavefront(faces, edgesList));
 
+        }
+
+        private static Wavefront CreateWavefront(List<FaceQueue> faces, CircularList<Edge> edgesList)
+        {
+            var lav = new Wavefront();
             foreach (var edge in edgesList.Iterate())
             {
                 var nextEdge = edge.Next as Edge;
@@ -948,7 +1192,7 @@ namespace Sutro.StraightSkeleton
             foreach (var vertex in lav.Iterate())
             {
                 var next = vertex.Next as Vertex;
-                // create face on right site of vertex
+                // create face on right side of vertex
                 var rightFace = new FaceNode(vertex);
 
                 var faceQueue = new FaceQueue();
@@ -958,11 +1202,21 @@ namespace Sutro.StraightSkeleton
                 faces.Add(faceQueue);
                 vertex.RightFace = rightFace;
 
-                // create face on left site of next vertex
+                // create face on left side of next vertex
                 var leftFace = new FaceNode(next);
                 rightFace.AddPush(leftFace);
                 next.LeftFace = leftFace;
             }
+
+            return lav;
+        }
+
+        protected Line2d CalcInitialBisector(Vector2d point, Edge edgeBefore, Edge edgeAfter, bool reverse)
+        {
+            var bisector = CalcVectorBisector(edgeBefore.Norm, edgeAfter.Norm);
+
+            // Reverse direction to make the ray external instead of internal
+            return new Line2d(point, reverse ? -bisector : bisector);
         }
 
         private static bool IsEventInGroup(HashSet<Vertex> parentGroup, SkeletonEvent @event)
@@ -970,6 +1224,7 @@ namespace Sutro.StraightSkeleton
             return @event switch
             {
                 SplitEvent splitEvent => parentGroup.Contains(splitEvent.Parent),
+                BoundaryEvent boundaryEvent => parentGroup.Contains(boundaryEvent.Parent),
                 EdgeEvent edgeEvent => parentGroup.Contains(edgeEvent.PreviousVertex) || parentGroup.Contains(edgeEvent.NextVertex),
                 _ => false,
             };
@@ -986,10 +1241,11 @@ namespace Sutro.StraightSkeleton
         private static List<SkeletonEvent> LoadAndGroupLevelEvents(PriorityQueue<SkeletonEvent> queue)
         {
             var levelEvents = LoadLevelEvents(queue);
-            return GroupLevelEvents(levelEvents);
+            var groupedEvents = GroupLevelEvents(levelEvents);
+            return groupedEvents;
         }
 
-        /// <summary> Loads all not obsolete event which are on one level. As level heigh is taken epsilon. </summary>
+        /// <summary> Loads all not obsolete event which are on one level. As level height is taken epsilon. </summary>
         private static List<SkeletonEvent> LoadLevelEvents(PriorityQueue<SkeletonEvent> queue)
         {
             var level = new List<SkeletonEvent>();
@@ -1009,9 +1265,9 @@ namespace Sutro.StraightSkeleton
 
             level.Add(levelStart);
 
-            SkeletonEvent @event;
-            while ((@event = queue.Peek()) != null &&
-                Math.Abs(@event.Distance - levelStartHeight) < SplitEpsilon)
+            SkeletonEvent skeletonEevent;
+            while ((skeletonEevent = queue.Peek()) != null &&
+                Math.Abs(skeletonEevent.Distance - levelStartHeight) < SplitEpsilon)
             {
                 var nextLevelEvent = queue.Next();
                 if (!nextLevelEvent.IsObsolete)
@@ -1020,8 +1276,8 @@ namespace Sutro.StraightSkeleton
             return level;
         }
 
-        private static void MultiEdgeEvent(MultiEdgeEvent @event,
-            PriorityQueue<SkeletonEvent> queue, List<Edge> edges)
+        private void MultiEdgeEvent(MultiEdgeEvent @event,
+            PriorityQueue<SkeletonEvent> queue, List<Edge> edges, List<Segment2d> ribSegments, List<Segment2d> spineSegments, bool external)
         {
             var center = @event.V;
             var edgeList = @event.Chain.EdgeList;
@@ -1032,9 +1288,28 @@ namespace Sutro.StraightSkeleton
             var nextVertex = @event.Chain.NextVertex;
             nextVertex.IsProcessed = true;
 
-            var bisector = CalcBisector(center, previousVertex.PreviousEdge, nextVertex.NextEdge);
+            var bisector = CalcInitialBisector(center, previousVertex.PreviousEdge, nextVertex.NextEdge, external);
             var edgeVertex = new Vertex(center, @event.Distance, bisector, previousVertex.PreviousEdge,
-                nextVertex.NextEdge);
+                nextVertex.NextEdge)
+            {
+                IsSplitVertex = previousVertex.IsSplitVertex || nextVertex.IsSplitVertex || @event.AbsorbedSplitEvent,
+                //IsSplitVertex = @event.AbsorbedSplitEvent,
+            };
+
+            var consumedVertices = new List<Vertex> { previousVertex };
+            consumedVertices.AddRange(@event.Chain.EdgeList.Select(edge => edge.NextVertex));
+
+            foreach (var v in consumedVertices)
+            {
+                if (v.IsSplitVertex)
+                {
+                    spineSegments.Add(new Segment2d(v.Point, center));
+                }
+                else
+                {
+                    ribSegments.Add(new Segment2d(v.Point, center));
+                }
+            }
 
             // left face
             AddFaceLeft(edgeVertex, previousVertex);
@@ -1045,16 +1320,18 @@ namespace Sutro.StraightSkeleton
             previousVertex.AddPrevious(edgeVertex);
 
             // back faces
-            AddMultiBackFaces(edgeList, edgeVertex);
+            AddMultiBackFaces(edgeList, edgeVertex, ribSegments, spineSegments);
 
             ComputeEvents(edgeVertex, queue, edges);
         }
 
-        private static void MultiSplitEvent(MultiSplitEvent @event, HashSet<CircularList<Vertex>> sLav,
-            PriorityQueue<SkeletonEvent> queue, List<Edge> edges)
+        private void MultiSplitEvent(MultiSplitEvent @event, HashSet<Wavefront> sLav,
+            PriorityQueue<SkeletonEvent> queue, List<Edge> edges, List<Segment2d> ribSegments)
         {
             var chains = @event.Chains;
             var center = @event.V;
+
+            ribSegments.Add(new Segment2d(@event.Chains[0].CurrentVertex.Point, center));
 
             CreateOppositeEdgeChains(sLav, chains, center);
 
@@ -1120,7 +1397,7 @@ namespace Sutro.StraightSkeleton
             }
         }
 
-        private static void PickEvent(PickEvent @event)
+        private static void PickEvent(PickEvent @event, List<Segment2d> ribSegments, List<Segment2d> spineSegments)
         {
             var center = @event.V;
             var edgeList = @event.Chain.EdgeList;
@@ -1128,10 +1405,10 @@ namespace Sutro.StraightSkeleton
             // lav will be removed so it is final vertex.
             AddMultiBackFaces(edgeList, new Vertex(center, @event.Distance,
                 new Line2d(Vector2d.MinValue, Vector2d.MinValue), null, null)
-            { IsProcessed = true });
+            { IsProcessed = true }, ribSegments, spineSegments);
         }
 
-        private static void ProcessTwoNodeLavs(HashSet<CircularList<Vertex>> sLav)
+        private static void ProcessTwoNodeLavs(HashSet<Wavefront> sLav, List<Segment2d> segments)
         {
             foreach (var lav in sLav)
             {
@@ -1148,6 +1425,8 @@ namespace Sutro.StraightSkeleton
 
                     LavUtil.RemoveFromLav(first);
                     LavUtil.RemoveFromLav(last);
+
+                    segments.Add(new Segment2d(first.Point, last.Point));
                 }
             }
         }
@@ -1216,7 +1495,7 @@ namespace Sutro.StraightSkeleton
             }
         }
 
-        private sealed class SkeletonEventDistanseComparer : IComparer<SkeletonEvent>
+        private sealed class SkeletonEventDistanceComparer : IComparer<SkeletonEvent>
         {
             public int Compare(SkeletonEvent left, SkeletonEvent right)
             {
