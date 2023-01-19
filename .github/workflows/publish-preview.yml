@@ -22,8 +22,8 @@ jobs:
           repo-token: "${{ secrets.GITHUB_TOKEN }}"
           tag: "${{ env.VERSION_TAG }}"
 
-      - name: Build & Test
-        run: dotnet test  --configuration Release Sutro.StraightSkeleton/Sutro.StraightSkeleton.csproj
+      - name: Build
+        run: dotnet test --configuration Release Sutro.StraightSkeleton.Tests/Sutro.StraightSkeleton.Tests.csproj
 
       - name: Pack
         run: dotnet pack --no-build --configuration Release /p:Version=${VERSION_TAG} -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg --output . Sutro.StraightSkeleton/Sutro.StraightSkeleton.csproj
