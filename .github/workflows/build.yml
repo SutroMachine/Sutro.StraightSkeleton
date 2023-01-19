@@ -13,6 +13,19 @@ jobs:
           fetch-depth: 0
           lfs: true
 
+      - name: Setup dotnet
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '6.0.x'
+      
+      - uses: actions/cache@v3
+        with:
+          path: ~/.nuget/packages
+          # Look to see if there is a cache hit for the corresponding requirements file
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget
+
       - uses: actions/setup-java@v3
         with:
           distribution: 'microsoft'
@@ -50,5 +63,5 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
           .\.sonar\scanner\dotnet-sonarscanner begin /k:"SutroMachine_Sutro.StraightSkeleton" /o:"sutromachine" /d:sonar.login="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:"sonar.cs.opencover.reportsPaths=**/coverage.opencover.xml"
-          dotnet test --collect:"XPlat Code Coverage" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover Sutro.StraightSkeleton.Tests/Sutro.StraightSkeleton.Tests.csproj
+          dotnet test --collect:"XPlat Code Coverage" Sutro.StraightSkeleton.Tests/Sutro.StraightSkeleton.Tests.csproj -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover 
           .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.login="${{ secrets.SONAR_TOKEN }}"
