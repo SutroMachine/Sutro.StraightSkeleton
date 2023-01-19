@@ -1,0 +1,35 @@
+name: Publish to NuGet
+
+on:
+  push:
+    branches:
+      - "feature/build-pipeline"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          lfs: true
+
+      - name: Generate Tag
+        run: echo "VERSION_TAG=1.0.0-preview.${{github.run_number}}" >> $GITHUB_ENV
+
+      - name: Tag commit
+        uses: tvdias/github-tagger@v0.0.1
+        with:
+          repo-token: "${{ secrets.GITHUB_TOKEN }}"
+          tag: "${{ env.VERSION_TAG }}"
+
+      - name: Build & Test
+        #run: dotnet test  --configuration Release
+        run: dotnet build --configuration Release Sutro.StraightSkeleton/Sutro.StraightSkeleton.csproj
+
+      - name: Pack
+        run: dotnet pack --no-build --configuration Release /p:Version=${VERSION_TAG} -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg --output . Sutro.StraightSkeleton/Sutro.StraightSkeleton.csproj
+      
+      - name: Push
+        run: dotnet nuget push Sutro.StraightSkeleton.${VERSION_TAG}.nupkg --api-key ${API_KEY} --source https://api.nuget.org/v3/index.json
+        env:
+          API_KEY: ${{ secrets.NUGET_API_KEY }}
