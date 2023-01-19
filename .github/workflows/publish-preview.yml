@@ -1,9 +1,9 @@
-name: Publish to NuGet
+name: Publish Preview NuGet Package
 
 on:
   push:
     branches:
-      - "feature/build-pipeline"
+      - develop
 
 jobs:
   build:
@@ -23,8 +23,7 @@ jobs:
           tag: "${{ env.VERSION_TAG }}"
 
       - name: Build & Test
-        #run: dotnet test  --configuration Release
-        run: dotnet build --configuration Release Sutro.StraightSkeleton/Sutro.StraightSkeleton.csproj
+        run: dotnet test  --configuration Release Sutro.StraightSkeleton/Sutro.StraightSkeleton.csproj
 
       - name: Pack
         run: dotnet pack --no-build --configuration Release /p:Version=${VERSION_TAG} -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg --output . Sutro.StraightSkeleton/Sutro.StraightSkeleton.csproj

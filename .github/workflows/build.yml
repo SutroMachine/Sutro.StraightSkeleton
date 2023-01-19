@@ -1,9 +1,7 @@
 name: Build, Test & Analyze
 
-on:
-  push:
-    branches:
-      - "*"
+# Build on any branch
+on: push
 
 jobs:
   build:
