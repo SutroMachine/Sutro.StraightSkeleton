@@ -209,11 +209,11 @@ namespace Sutro.StraightSkeleton
                 step.AddRibSegmentsToSvg(finalWriter);
                 step.AddSpineSegmentsToSvg(finalWriter);
 
-                skeleton.AddSpineSegments(step.SpineSegments);
                 skeleton.AddToSVG(finalWriter, ref bounds);
                 finalWriter.Write($"{svgPrefix}-FINAL.svg");
             }
 
+            skeleton.AddSpineSegments(step.SpineSegments);
             skeleton.OffsetSeed = OffsetSeed.FromFaceQueues(faces);
 
             // Clean up for next usage
